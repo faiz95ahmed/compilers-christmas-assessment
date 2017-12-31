@@ -22,7 +22,7 @@ open Tree
 %token                  ARRAY BEGIN CONST DO ELSE END IF OF
 %token                  PROC RECORD RETURN THEN TO TYPE
 %token                  VAR WHILE NOT POINTER NIL
-%token                  REPEAT UNTIL FOR ELSIF CASE
+%token                  REPEAT UNTIL FOR ELSIF CASE STEP
 
 %type <Tree.program>    program
 %start                  program
@@ -119,7 +119,7 @@ stmt1 :
   | REPEAT stmts UNTIL expr             { RepeatStmt ($2, $4) }
   | FOR name ASSIGN expr TO expr DO stmts END 
                                         { let v = makeExpr (Variable $2) in
-                                          ForStmt (v, $4, $6, $8, ref None) } 
+                                          ForStmt (v, $4, $6, $8, ref None) }
   | CASE expr OF arms else_part END     { CaseStmt ($2, $4, $5) } ;
 
 elses :

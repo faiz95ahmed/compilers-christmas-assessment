@@ -19,7 +19,7 @@ let symtable =
       ("return", RETURN); ("then", THEN); ("to", TO);
       ("type", TYPE); ("var", VAR); ("while", WHILE);
       ("pointer", POINTER); ("nil", NIL);
-      ("repeat", REPEAT); ("until", UNTIL); ("for", FOR);
+      ("repeat", REPEAT); ("until", UNTIL); ("for", FOR); ("step", STEP);
       ("elsif", ELSIF); ("case", CASE);
       ("and", MULOP And); ("div", MULOP Div); ("or", ADDOP Or);
       ("not", NOT); ("mod", MULOP Mod) ]
