@@ -117,9 +117,9 @@ stmt1 :
   | IF expr THEN stmts elses END        { IfStmt ($2, $4, $5) }
   | WHILE expr DO stmts END             { WhileStmt ($2, $4) } 
   | REPEAT stmts UNTIL expr             { RepeatStmt ($2, $4) }
-  | FOR name ASSIGN expr TO expr DO stmts END 
+  | FOR name ASSIGN for_list DO stmts END
                                         { let v = makeExpr (Variable $2) in
-                                          ForStmt (v, $4, $6, $8, ref None) }
+                                          ForStmt (v, $4, $6, ref None) }
   | CASE expr OF arms else_part END     { CaseStmt ($2, $4, $5) } ;
 
 elses :
@@ -176,9 +176,19 @@ actuals :
     LPAR RPAR                           { [] }
   | LPAR expr_list RPAR                 { $2 } ;
 
-expr_list :     
+expr_list :
     expr                                { [$1] }
   | expr COMMA expr_list                { $1 :: $3 } ;
+
+for_list :
+    for_list_element                    { [$1] }
+  | for_list_element COMMA for_list     { $1 :: $3 } ; 
+
+for_list_element :
+    expr TO expr                        { StepElem ($1, $3, const 1 integer)}
+  | expr STEP expr UNTIL expr           { StepElem ($1, $3, $5) }
+  | expr WHILE expr                     { WhileElem ($1, $3) }
+  | expr                                { SingleElem $1 }
 
 variable :      
     name                                { makeExpr (Variable $1) }

@@ -37,7 +37,7 @@ and stmt_guts =
   | IfStmt of expr * stmt * stmt
   | WhileStmt of expr * stmt
   | RepeatStmt of stmt * expr
-  | ForStmt of expr * expr * expr * stmt * def option ref
+  | ForStmt of expr * for_list_element list * stmt * def option ref
   | CaseStmt of expr * (expr * stmt) list * stmt
 
   (* |for_list_element| -- kinds of forlist element*)
@@ -46,9 +46,6 @@ and for_list_element =
     SingleElem of expr
   | StepElem of expr * expr * expr
   | WhileElem of expr * expr
-
-and for_list =
-  | ForList of for_list_element list
 
 and expr = 
   { e_guts: expr_guts; 
@@ -149,8 +146,8 @@ and fStmt s =
         fMeta "(WHILE $ $)" [fExpr test; fStmt body]
     | RepeatStmt (body, test) ->
         fMeta "(REPEAT $ $)" [fStmt body; fExpr test]
-    | ForStmt (var, lo, hi, body, _) ->
-        fMeta "(FOR $ $ $ $)" [fExpr var; fExpr lo; fExpr hi; fStmt body]
+    | ForStmt (var, forlist, body, _) ->
+        fMeta "(FOR $ $ $)" [fExpr var; fList(fForListElement) forlist; fStmt body]
     | CaseStmt (sel, arms, deflt) ->
         let fArm (lab, body) = fMeta "($ $)" [fExpr lab; fStmt body] in
         fMeta "(CASE $ $ $)" [fExpr sel; fList(fArm) arms; fStmt deflt]
@@ -170,6 +167,13 @@ and fExpr e =
         fMeta "($ $)" [Optree.fOp w; fExpr e1]
     | Binop (w, e1, e2) -> 
         fMeta "($ $ $)" [Optree.fOp w; fExpr e1; fExpr e2]
+
+and fForListElement e = 
+  match e with
+    SingleElem (e1) -> fMeta "(SINGLE_ELEM $)" [fExpr e1]
+  | StepElem (e1, e2, e3) -> fMeta "(STEP_ELEM $ $ $)" [fExpr e1; fExpr e2; fExpr e3]
+  | WhileElem (e1, e2) -> fMeta "(WHILE_ELEM $ $)" [fExpr e1; fExpr e2]
+
 
 and fType =
   function

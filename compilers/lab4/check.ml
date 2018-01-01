@@ -348,12 +348,10 @@ let rec check_stmt s env alloc =
         if not (same_type ct boolean) then
           sem_error "type mismatch in repeat statement" []
 
-    | ForStmt (var, lo, hi, body, upb) ->
+    | ForStmt (var, forlist, body, upb) ->
         let vt = check_expr var env in
-        let lot = check_expr lo env in
-        let hit = check_expr hi env in
-        if not (same_type vt integer) || not (same_type lot integer)
-            || not (same_type hit integer) then
+        let forlist_checked = List.map (function (x) -> check_for_list_element x env) forlist in
+        if not (same_type vt integer) then
           sem_error "type mismatch in for statement" [];
         check_var var false;
         check_stmt body env alloc;
@@ -378,6 +376,27 @@ let rec check_stmt s env alloc =
         check_dupcases vs;
         check_stmt deflt env alloc
 
+(* |check_for_list_element| -- check and annotate a for_list_element *)
+and check_for_list_element s env =
+  match s with
+    SingleElem (e1) -> 
+      let xt = check_expr e1 env in
+      if not (same_type xt integer) then
+        sem_error "type mismatch in forlist element" [];
+      xt
+  | StepElem (e1, e2, e3) -> 
+      let start = check_expr e1 env in
+      let step = check_expr e2 env in
+      let until = check_expr e3 env in
+      if not (same_type start integer) || not (same_type step integer) || not (same_type until integer) then
+        sem_error "type mismatch in forlist element" [];
+      until
+  | WhileElem (e1, e2) ->
+      let nxt = check_expr e1 env in
+      let boolstmt = check_expr e2 env in
+      if not (same_type nxt integer) || not (same_type boolstmt boolean) then
+        sem_error "type mismatch in forlist element" [];
+      nxt
 
 (* TYPES AND DECLARATIONS *)
 

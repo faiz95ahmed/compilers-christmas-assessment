@@ -304,18 +304,16 @@ let rec gen_stmt s =
             gen_cond test l2 l1,
             <LABEL l2>>
 
-      | ForStmt (var, lo, hi, body, upb) ->
+      | ForStmt (var, forlist, body, upb) ->
           (* Use previously allocated temp variable to store upper bound.
              We could avoid this if the upper bound is constant. *)
           let tmp = match !upb with Some d -> d | _ -> failwith "for" in
           let l1 = label () and l2 = label () in
           <SEQ,
-            <STOREW, gen_expr lo, gen_addr var>,
-            <STOREW, gen_expr hi, address tmp>,
+            <STOREW, <CONST 0>, address tmp>,
             <LABEL l1>,
-            <JUMPC (Gt, l2), gen_expr var, <LOADW, address tmp>>,
+            gen_for_list var forlist tmp l2,
             gen_stmt body,
-            <STOREW, <BINOP Plus, gen_expr var, <CONST 1>>, gen_addr var>,
             <JUMP l1>,
             <LABEL l2>>
 
@@ -339,6 +337,55 @@ let rec gen_stmt s =
 
    (* Label the code with a line number *)
    <SEQ, <LINE s.s_line>, code>
+
+and gen_for_list var forlist tmp exitlab =
+    let lablist = List.map (function x -> label ()) forlist in
+    let forlist2 = List.combine lablist forlist in
+    let lab = label () in
+    let forlistelements = List.map (function (x) -> gen_for_list_element x lab var tmp) forlist2 in
+    <SEQ,
+      <JCASE (lablist, exitlab), <LOADW, address tmp>>,
+      <SEQ, @forlistelements>,
+      <JUMP exitlab>,
+      <LABEL lab>>
+
+and gen_for_list_element elem bodylab var tmp = 
+  let (labelf, forlistelem) = elem in
+  (* let (numlabels, label1, label2) = labels in *)
+    match forlistelem with
+    SingleElem (e1) -> 
+      <SEQ,
+        <STOREW, gen_expr e1, gen_addr var>,
+        <JUMP bodylab>,
+        <LABEL labelf>, 
+        <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+  | StepElem (e1, e2, e3) ->
+      let internal_lab1 = label () and internal_lab2 = label () and endlab = label () in
+      <SEQ,
+        <STOREW, gen_expr e1, gen_addr var>,
+        <JUMP internal_lab1>,
+        <LABEL labelf>,
+        <STOREW, <BINOP Plus, gen_expr var, gen_expr e2>, gen_addr var>,
+        <LABEL internal_lab1>,
+        <JUMPC (Gt, internal_lab2), gen_expr e2, <CONST 0>>,
+        <JUMPC (Lt, endlab), gen_expr var, gen_expr e3>,
+        <JUMP bodylab>,
+        <LABEL internal_lab2>,
+        <JUMPC (Lt, bodylab), gen_expr var, gen_expr e3>,
+        <LABEL endlab>,
+        <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+  | WhileElem (e1, e2) ->
+      let truelab = label() and falselab = label () in
+      <SEQ,
+        <LABEL labelf>,
+        <STOREW, gen_expr e1, gen_addr var>,
+        gen_cond e2 truelab falselab,
+        <LABEL truelab>,
+        <JUMP bodylab>,
+        <LABEL falselab>,
+        <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+
+
 
 (* unnest -- move procedure calls to top level *)
 let unnest code =
