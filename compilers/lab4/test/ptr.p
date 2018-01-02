@@ -46,6 +46,7 @@ var n: integer; p: tree;
 
 begin 
   for n := 0 to 7 do
+		(* print_num(n); newline(); *)
     p := build(n);
     print_num(count(p)); print_char(' ');
     print(p); newline()

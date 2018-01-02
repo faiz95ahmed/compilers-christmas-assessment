@@ -310,7 +310,7 @@ let rec gen_stmt s =
           let tmp = match !upb with Some d -> d | _ -> failwith "for" in
           let l1 = label () and l2 = label () in
           <SEQ,
-            <STOREW, <CONST 0>, address tmp>,
+            <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>,
             <LABEL l1>,
             gen_for_list var forlist tmp l2,
             gen_stmt body,
@@ -339,15 +339,19 @@ let rec gen_stmt s =
    <SEQ, <LINE s.s_line>, code>
 
 and gen_for_list var forlist tmp exitlab =
-    let lablist = List.map (function x -> label ()) forlist in
-    let forlist2 = List.combine lablist forlist in
-    let lab = label () in
-    let forlistelements = List.map (function (x) -> gen_for_list_element x lab var tmp) forlist2 in
+    let forlist1 = List.flatten (prepare forlist) in
+    let lablist = List.map (function x -> label ()) forlist1 in
+    let forlist2 = List.combine lablist forlist1 in
+    let lab1 = label () and lab2 = label () in
+    let forlistelements = List.map (function (x) -> gen_for_list_element x lab1 var tmp) forlist2 in
     <SEQ,
+      <JUMPC (Lt, lab2), <LOADW, address tmp>, <CONST 0>>, 
       <JCASE (lablist, exitlab), <LOADW, address tmp>>,
+      <LABEL lab2>,
+      <STOREW, <CONST 0>, address tmp>,
       <SEQ, @forlistelements>,
       <JUMP exitlab>,
-      <LABEL lab>>
+      <LABEL lab1>>
 
 and gen_for_list_element elem bodylab var tmp = 
   let (labelf, forlistelem) = elem in
@@ -361,19 +365,31 @@ and gen_for_list_element elem bodylab var tmp =
         <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
   | StepElem (e1, e2, e3) ->
       let internal_lab1 = label () and internal_lab2 = label () and endlab = label () in
-      <SEQ,
-        <STOREW, gen_expr e1, gen_addr var>,
-        <JUMP internal_lab1>,
-        <LABEL labelf>,
-        <STOREW, <BINOP Plus, gen_expr var, gen_expr e2>, gen_addr var>,
-        <LABEL internal_lab1>,
-        <JUMPC (Gt, internal_lab2), gen_expr e2, <CONST 0>>,
-        <JUMPC (Lt, endlab), gen_expr var, gen_expr e3>,
-        <JUMP bodylab>,
-        <LABEL internal_lab2>,
-        <JUMPC (Lt, bodylab), gen_expr var, gen_expr e3>,
-        <LABEL endlab>,
-        <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+      let step = gen_expr e2 in
+      (match step with
+        <CONST n> -> if n > 0 then
+                        <SEQ,
+                            <LABEL labelf>,
+                            <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
+                            <JUMPC (Leq, bodylab), gen_expr var, gen_expr e3>,
+                            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+                        else
+                        <SEQ,
+                            <LABEL labelf>,
+                            <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,                          
+                            <JUMPC (Geq, bodylab), gen_expr var, gen_expr e3>,
+                            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+      | _ ->
+        <SEQ,
+            <LABEL labelf>,
+            <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
+            <JUMPC (Gt, internal_lab2), step, <CONST 0>>,
+            <JUMPC (Lt, endlab), gen_expr var, gen_expr e3>,
+            <JUMP bodylab>,
+            <LABEL internal_lab2>,
+            <JUMPC (Leq, bodylab), gen_expr var, gen_expr e3>,
+            <LABEL endlab>,
+            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>)
   | WhileElem (e1, e2) ->
       let truelab = label() and falselab = label () in
       <SEQ,
@@ -385,6 +401,13 @@ and gen_for_list_element elem bodylab var tmp =
         <LABEL falselab>,
         <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
 
+and prepare forlist =
+    match forlist with
+      [] -> []
+    | x :: rs -> (match x with
+                      SingleElem (e1) -> [SingleElem (e1)]
+                    | StepElem (e1, e2, e3) -> [SingleElem (e1) ; StepElem (e1, e2, e3) ]
+                    | WhileElem (e1, e2) -> [WhileElem (e1, e2)]) :: (prepare rs)
 
 
 (* unnest -- move procedure calls to top level *)

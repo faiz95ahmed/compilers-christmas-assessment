@@ -69,6 +69,17 @@ test1-%: pas0.o force
 	sed -n $(SCRIPT2) test/$*.p | diff - b.test
 	@echo "*** Passed"; echo
 
+# testdebug -- compile tests and execute with QEMU
+testdebug : $(TESTSRC:test/%.p=testdebug-%)
+
+testdebug-%: pas0.o force
+	@echo "*** Test $*.p"
+	./ppc $(OPT) test/$*.p >b.s
+	$(ARMGCC) b.s pas0.o -gstabs+ -static -o b.out 
+	$(QEMU) -singlestep -g 1236 ./b.out >b.test
+	sed -n $(SCRIPT2) test/$*.p | diff - b.test
+	@echo "*** Passed"; echo
+
 pas0.o: pas0.c
 	$(ARMGCC) -c $< -o $@
 

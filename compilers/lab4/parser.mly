@@ -185,7 +185,7 @@ for_list :
   | for_list_element COMMA for_list     { $1 :: $3 } ; 
 
 for_list_element :
-    expr TO expr                        { StepElem ($1, $3, const 1 integer)}
+    expr TO expr                        { StepElem ($1, const 1 integer, $3)}
   | expr STEP expr UNTIL expr           { StepElem ($1, $3, $5) }
   | expr WHILE expr                     { WhileElem ($1, $3) }
   | expr                                { SingleElem $1 }
