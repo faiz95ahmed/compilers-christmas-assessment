@@ -95,6 +95,9 @@ The goal of this assignment is to produce a modern implementation of this loopin
 
 
 1 Naur, P. (Ed.), Revised report on the algorithmic language Algol 60, Computer Journal, 5 (4), January 1963, pp. 349–67. Copies of this report and the paper by Knuth are linked from the course web page.
+
 2 The extract has been edited to remove references to go to statements and labels and an unhelpful reference to the function sign.
+
 3 The second example incorporates a correction proposed in Knuth, D. E., The remaining trouble spots in Algol 60, Comm. ACM, 10 (10), October 1967, pp. 611–18.
+
 4 “Whenever . . . the outcome of a certain process is left undefined or said to be undefined, this is to be interpreted in the sense that a program only fully defines a computational process if the accompanying information specifies . . . the course of action to be taken in all such cases as may occur during the execution of the computation.” (Naur, op. cit., footnote on p. 352.)
