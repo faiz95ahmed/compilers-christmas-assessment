@@ -3,16 +3,16 @@
 1 Specification
 The programming language Algol 60 included only one looping construct, the for loop, but this could take different forms. A for loop had a ‘controlled variable’ that would be assigned a sequence of values as the loop body was executed. These values could be listed explicitly, as in
 
-  for k := 1, 2, 3, 5 do print(k)
+		for k := 1, 2, 3, 5 do print(k)
   
 It was also possible to specify an arithmetic progression, as in this example:
 
-  for k := 10 step 10 until 100 do print(k)
+		for k := 10 step 10 until 100 do print(k)
 
 Here k takes the values 10, 20, 30, . . . , 100 in successive executions of the loop body. A third form of loop allowed more that just arithmetic progressions. Here is an example:
 
-  k := 1;
-  for k := 2 ∗ k while k < 1000 do print(k)
+		k := 1;
+		for k := 2 ∗ k while k < 1000 do print(k)
   
 This prints 2, 4, 8, . . . , 512, stopping there because the next value, 1024, does not satisfy the test. These three forms – simple expressions, step-until elements, and while elements – could be combined, like this:
 
