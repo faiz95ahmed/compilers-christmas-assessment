@@ -97,9 +97,11 @@ where the notation is the same as in 4.6.4.2 above.
 [Upon exit from a for statement owing] to the exhaustion of the for list, . . . the value of the controlled variable is undefined (note 5) after the exit.
 The goal of this assignment is to produce a modern implementation of this looping construct by replacing the existing for loop in the compiler we used in Lab 4. To fit in with the rest of the language implemented by that compiler, you should implement Algol 60-style for loops with the following differences:
 
-  • In accord with the syntactic style of the rest of the language, a <for clause> should govern a sequence of statements terminated by end; in Algol 60, a similar effect would be obtained by enclosing the sequence of statements in begin . . . end brackets.
-  • A number of compiler test cases contain for loops with the existing syntax. To allow these to continue to pass, you should allow lo to hi as an abbreviation for lo step 1 until hi.
-  • In Algol 60, for loops may have controlled variables with either real or integer type. Since real variables and arithmetic are not supported by the compiler in Lab 4, you should allow only integer variables and expressions.
+• In accord with the syntactic style of the rest of the language, a <for clause> should govern a sequence of statements terminated by end; in Algol 60, a similar effect would be obtained by enclosing the sequence of statements in begin . . . end brackets.
+	
+• A number of compiler test cases contain for loops with the existing syntax. To allow these to continue to pass, you should allow lo to hi as an abbreviation for lo step 1 until hi.
+
+• In Algol 60, for loops may have controlled variables with either real or integer type. Since real variables and arithmetic are not supported by the compiler in Lab 4, you should allow only integer variables and expressions.
 
 
 1 Naur, P. (Ed.), Revised report on the algorithmic language Algol 60, Computer Journal, 5 (4), January 1963, pp. 349–67. Copies of this report and the paper by Knuth are linked from the course web page.
