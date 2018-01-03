@@ -1,0 +1,3 @@
+1. Ensure value of variable is undefined after exit
+2. have a shortcut case for when the forlist only contains a single element
+3. Tidy up object code?
