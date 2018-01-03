@@ -16,14 +16,14 @@ Here k takes the values 10, 20, 30, . . . , 100 in successive executions of the 
   
 This prints 2, 4, 8, . . . , 512, stopping there because the next value, 1024, does not satisfy the test. These three forms – simple expressions, step-until elements, and while elements – could be combined, like this:
 
-  for k := 1, 2, 3, 5, 10 step 10 until 100, 2 ∗ k while k < 1000 do
-  print(k)
+	  for k := 1, 2, 3, 5, 10 step 10 until 100, 2 ∗ k while k < 1000 do
+	  print(k)
   
 Perhaps unexpectedly, this program prints 1, 2, 3, 5, 10, 20, 30, . . . , 100, 220, 440, 880. The next value after 100 is 220, because (as the formal definition below makes explicit), k is set to 110 before the test k ≤ 100 fails, and the while element begins by computing 2 ∗ k with this value of k. As a more meaningful example, the following program computes a = floor(sqrt(b)) using binary search. A single loop encompasses two phases, one where d is growing until (a + d)^2 > x, and another where d is shrinking again.
 
-  a := 0;
-  for d := 1, 2 ∗ d while square(a + d) ≤ x, d div 2 while d ≥ 1 do
-  if square(a + d) ≤ x then a := a + d
+	  a := 0;
+	  for d := 1, 2 ∗ d while square(a + d) ≤ x, d div 2 while d ≥ 1 do
+	  if square(a + d) ≤ x then a := a + d
 
 The meaning of for loops is defined in the following edited extract from the Revised Report on Algol 60 (note 1, note 2)
 
@@ -31,29 +31,30 @@ Description of the reference language
 4. Statements
 4.6. For Statements
 4.6.1. Syntax [edited]
-  <for list element> ::= 
-  <arithmetic expression> |
-  <arithmetic expression> step <arithmetic expression>
-  until <arithmetic expression> |
-  <arithmetic expression> while <Boolean expression>
-  <for list> ::= <for list element> |
-  <for list>, <for list element>
-  <for clause> ::= for <variable> := <for list> do
-  <for statement> ::= <for clause> <statement>
+	<for list element> ::= 
+	<arithmetic expression> |
+	<arithmetic expression> step <arithmetic expression>
+	until <arithmetic expression> |
+	<arithmetic expression> while <Boolean expression>
+	<for list> ::= <for list element> |
+	<for list>, <for list element>
+	<for clause> ::= for <variable> := <for list> do
+	<for statement> ::= <for clause> <statement>
  
 4.6.2 Examples (note 3)
 
-  for q := 1 step s until n do A[q] := B[q]
-  for k := 1, k × 2 while k < B do
-  for j := I + G, L, 1 step 1 until N, C + D do
-  A[k, j] := B[k, j]
+	for q := 1 step s until n do A[q] := B[q]
+	for k := 1, k × 2 while k < B do
+	for j := I + G, L, 1 step 1 until N, C + D do
+	A[k, j] := B[k, j]
   
 4.6.3 Semantics
 A for clause causes the statement S which it precedes to be repeatedly executed zero or more times. In addition it performs a sequence of assignments to its controlled variable. The process may be visualized by means of the following picture:
-             ↓--------------------↑
-Initialize; test; statement S; advance; successor
-              ↓___________________________↑
-                  for list exhausted
+
+		     ↓--------------------↑
+	Initialize; test; statement S; advance; successor
+		      ↓___________________________↑
+			  for list exhausted
                   
 In this picture the word initialize means: perform the first assignment of the for clause. Advance means: perform the next assignment of the for clause. Test determines if the last assignment has been done. If so, the execution continues with the successor of the for statement. If not, the statement following the for clause is executed.
 
@@ -64,23 +65,23 @@ The for list gives a rule for obtaining the values which are consecutively assig
 
 4.6.4.2. Step-until-element. An element of the form A step B until C, where A, B, and C are arithmetic expressions, gives rise to an execution which may be described most concisely in terms of additional Algol statements as follows [edited]:
 
-    V := A;
-  L1:
-    if B > 0 then begin if V > C then go to Element exhausted end
-    else begin if V < C then go to Element exhausted end;
-    statement S;
-    V := V + B;
-    go to L1;
+		V := A;
+	L1:
+		if B > 0 then begin if V > C then go to Element exhausted end
+		else begin if V < C then go to Element exhausted end;
+		statement S;
+		V := V + B;
+		go to L1;
   
 where V is the controlled variable of the for clause and Element exhausted points to the evaluation according to the next element of the for list, or if the step-until-element is the last of the list, to the next statement in the program.
 
 4.6.4.3. While-element. The execution governed by a for list element of the form E while F, where E is an arithmetic and F a Boolean expression, is most concisely described in terms of additional Algol statements as follows:
 
-  L3:
-    V := E;
-    if ¬F then go to Element exhausted;
-    Statement S;
-    go to L3;
+	L3:
+		V := E;
+		if ¬F then go to Element exhausted;
+		Statement S;
+		go to L3;
     
 where the notation is the same as in 4.6.4.2 above.
 
