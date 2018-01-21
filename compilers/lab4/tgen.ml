@@ -233,6 +233,12 @@ let rec gen_cond test tlab flab =
                 <JUMP flab>>
         end
 
+let increment_tmp tmp_var used =  
+        if used then
+            <STOREW, <BINOP Plus, <LOADW, address tmp_var>, <CONST 1>>, address tmp_var>
+        else
+            <NOP>
+
 (* |gen_jtable| -- lay out jump table for case statement *)
 let gen_jtable sel table0 deflab =
   if table0 = [] then
@@ -309,13 +315,28 @@ let rec gen_stmt s =
              We could avoid this if the upper bound is constant. *)
           let tmp = match !upb with Some d -> d | _ -> failwith "for" in
           let l1 = label () and l2 = label () in
-          <SEQ,
-            <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>,
-            <LABEL l1>,
-            gen_for_list var forlist tmp l2,
-            gen_stmt body,
-            <JUMP l1>,
-            <LABEL l2>>
+          if (List.length forlist) = 1 then
+            let elem = List.hd forlist in
+            match elem with
+                  SingleElem (e1) -> <SEQ,
+                                        <STOREW, gen_expr e1, gen_addr var>,
+                                        gen_stmt body>
+                | _ -> let l3 = label () in
+                        <SEQ,
+                            gen_for_list_element (l1, elem) l2 var tmp false,
+                            <JUMP l3>,
+                            <LABEL l2>,
+                            gen_stmt body,
+                            <JUMP l1>,
+                            <LABEL l3>>               
+          else
+            <SEQ,
+                <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>, (* this gets optimised to -1, so it's OK  - for skipping the JCASE statement the first time, to allow proper fall-through behaviour *)
+                <LABEL l1>,
+                gen_for_list var forlist tmp l2,
+                gen_stmt body,
+                <JUMP l1>,
+                <LABEL l2>>
 
       | CaseStmt (sel, arms, deflt) ->
           (* Use one jump table, and hope it is reasonably compact *)
@@ -339,21 +360,20 @@ let rec gen_stmt s =
    <SEQ, <LINE s.s_line>, code>
 
 and gen_for_list var forlist tmp exitlab =
-    let forlist1 = List.flatten (prepare forlist) in
-    let lablist = List.map (function x -> label ()) forlist1 in
-    let forlist2 = List.combine lablist forlist1 in
+    let lablist = List.map (function x -> label ()) forlist in
+    let forlist1 = List.combine lablist forlist in
     let lab1 = label () and lab2 = label () in
-    let forlistelements = List.map (function (x) -> gen_for_list_element x lab1 var tmp) forlist2 in
+    let forlistelements = List.map (function (x) -> gen_for_list_element x lab1 var tmp true) forlist1 in
     <SEQ,
-      <JUMPC (Lt, lab2), <LOADW, address tmp>, <CONST 0>>, 
-      <JCASE (lablist, exitlab), <LOADW, address tmp>>,
-      <LABEL lab2>,
-      <STOREW, <CONST 0>, address tmp>,
-      <SEQ, @forlistelements>,
-      <JUMP exitlab>,
-      <LABEL lab1>>
+        <JUMPC (Lt, lab2), <LOADW, address tmp>, <CONST 0>>, (* code for skipping the JCASE statement the first time, to allow proper fall-through behaviour*)
+        <JCASE (lablist, exitlab), <LOADW, address tmp>>,
+        <LABEL lab2>,
+        <STOREW, <CONST 0>, address tmp>, (* code for skipping the JCASE statement the first time, to allow proper fall-through behaviour*)
+        <SEQ, @forlistelements>,
+        <JUMP exitlab>,
+        <LABEL lab1>>
 
-and gen_for_list_element elem bodylab var tmp = 
+and gen_for_list_element elem bodylab var tmp tmp_used= 
   let (labelf, forlistelem) = elem in
   (* let (numlabels, label1, label2) = labels in *)
     match forlistelem with
@@ -369,27 +389,36 @@ and gen_for_list_element elem bodylab var tmp =
       (match step with
         <CONST n> -> if n > 0 then
                         <SEQ,
+                            <STOREW, gen_expr e1, gen_addr var>, (* A: Code for proper fall-through behaviour *)
+                            <JUMP internal_lab1>, (* A *)
                             <LABEL labelf>,
                             <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
+                            <LABEL internal_lab1>, (* A *)
                             <JUMPC (Leq, bodylab), gen_expr var, gen_expr e3>,
-                            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+                            increment_tmp tmp tmp_used>
                         else
                         <SEQ,
+                            <STOREW, gen_expr e1, gen_addr var>, (* A *)
+                            <JUMP internal_lab1>, (* A *)
                             <LABEL labelf>,
-                            <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,                          
+                            <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
+                            <LABEL internal_lab1>,  (* A *)                        
                             <JUMPC (Geq, bodylab), gen_expr var, gen_expr e3>,
-                            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
+                            increment_tmp tmp tmp_used>
       | _ ->
         <SEQ,
+            <STOREW, gen_expr e1, gen_addr var>, (* A *)
+            <JUMP internal_lab1>, (* A *)
             <LABEL labelf>,
             <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
+            <LABEL internal_lab1>, (* A *)
             <JUMPC (Gt, internal_lab2), step, <CONST 0>>,
             <JUMPC (Lt, endlab), gen_expr var, gen_expr e3>,
             <JUMP bodylab>,
             <LABEL internal_lab2>,
             <JUMPC (Leq, bodylab), gen_expr var, gen_expr e3>,
             <LABEL endlab>,
-            <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>)
+            increment_tmp tmp tmp_used>)
   | WhileElem (e1, e2) ->
       let truelab = label() and falselab = label () in
       <SEQ,
@@ -399,16 +428,7 @@ and gen_for_list_element elem bodylab var tmp =
         <LABEL truelab>,
         <JUMP bodylab>,
         <LABEL falselab>,
-        <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
-
-and prepare forlist =
-    match forlist with
-      [] -> []
-    | x :: rs -> (match x with
-                      SingleElem (e1) -> [SingleElem (e1)]
-                    | StepElem (e1, e2, e3) -> [SingleElem (e1) ; StepElem (e1, e2, e3) ]
-                    | WhileElem (e1, e2) -> [WhileElem (e1, e2)]) :: (prepare rs)
-
+        increment_tmp tmp tmp_used>
 
 (* unnest -- move procedure calls to top level *)
 let unnest code =
