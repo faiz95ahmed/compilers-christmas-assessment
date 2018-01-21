@@ -7,7 +7,8 @@ begin
 end;
 
 begin
-  for i := 1 to 5 do
+  i := 0;
+  for k := 1 to 5 do
     print_num(iterator());
     newline()
   end
