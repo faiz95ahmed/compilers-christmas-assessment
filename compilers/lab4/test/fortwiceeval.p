@@ -8,7 +8,7 @@ end;
 
 begin
   i := 0;
-  for k := 1 to 5 do
+  for k := 1 until 100 step iterator() do
     print_num(iterator());
     newline()
   end
