@@ -255,9 +255,9 @@ let gen_jtable sel table0 deflab =
       <BINOP Minus, sel, <CONST lobound>>>
   end
 
-let gen_for_list_element elem bodylab var tmp tmp_used= 
+(* |gen_for_list_element| -- generate the code for a single for list element *)
+let gen_for_list_element elem bodylab var tmp tmp_used = 
   let (labelf, forlistelem) = elem in
-  (* let (numlabels, label1, label2) = labels in *)
     match forlistelem with
     SingleElem (e1) -> 
       <SEQ,
@@ -312,6 +312,7 @@ let gen_for_list_element elem bodylab var tmp tmp_used=
         <LABEL falselab>,
         increment_tmp tmp tmp_used>
 
+(* |gen_for_listt| -- generate the code for an entire for list *)
 let gen_for_list var forlist tmp exitlab =
     let lablist = List.map (function x -> label ()) forlist in
     let forlist1 = List.combine lablist forlist in
@@ -382,8 +383,6 @@ let rec gen_stmt s =
             <LABEL l2>>
 
       | ForStmt (var, forlist, body, upb) ->
-          (* Use previously allocated temp variable to store upper bound.
-             We could avoid this if the upper bound is constant. *)
           let tmp = match !upb with Some d -> d | _ -> failwith "for" in
           let l1 = label () and l2 = label () in
           if (List.length forlist) = 1 then
@@ -402,7 +401,8 @@ let rec gen_stmt s =
                             <LABEL l3>>               
           else
             <SEQ,
-                <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>, (* this gets optimised to -1, so it's OK  - for skipping the JCASE statement the first time, to allow proper fall-through behaviour *)
+                <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>, 
+                (* this gets optimised to -1, so it's OK  - for skipping the JCASE statement the first time, to allow proper fall-through behaviour *)
                 <LABEL l1>,
                 gen_for_list var forlist tmp l2,
                 gen_stmt body,
