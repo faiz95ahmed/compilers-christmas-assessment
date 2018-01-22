@@ -532,22 +532,24 @@ _MakeArray:
 	sub sp, sp, #8
 @   for i := 0 to m-1 do
 	mov r4, #0
+	b .L30
+.L21:
+	add r4, r4, #1
+.L30:
 	ldr r0, [fp, #48]
 	sub r0, r0, #1
-	str r0, [fp, #-8]
-.L21:
-	ldr r0, [fp, #-8]
 	cmp r4, r0
 	bgt .L20
 @     for j := 0 to n-1 do
 	mov r5, #0
+	b .L27
+.L24:
+	add r5, r5, #1
+.L27:
 	ldr r0, [fp, #52]
 	sub r0, r0, #1
-	str r0, [fp, #-4]
-.L23:
-	ldr r0, [fp, #-4]
 	cmp r5, r0
-	bgt .L24
+	bgt .L21
 @       new(p); p^.name := name; p^.x := i+1; p^.y := j+1; 
 	mov r0, #32
 	bl new
@@ -592,11 +594,7 @@ _MakeArray:
 	lsl r1, r5, #2
 	add r0, r0, r1
 	str r6, [r0]
-	add r5, r5, #1
-	b .L23
-.L24:
-	add r4, r4, #1
-	b .L21
+	b .L24
 .L20:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
@@ -728,43 +726,35 @@ _MakePuzzle:
 	bl _MakeArray
 @   for i := 0 to N-1 do
 	mov r4, #0
-	mov r0, #8
-	str r0, [fp, #-12]
-.L27:
-	ldr r0, [fp, #-12]
-	cmp r4, r0
-	bgt .L26
+	b .L50
+.L35:
+	add r4, r4, #1
+.L50:
+	cmp r4, #8
+	bgt .L37
 @     for j := 0 to N-1 do
 	mov r5, #0
-	mov r0, #8
-	str r0, [fp, #-8]
-.L29:
-	ldr r0, [fp, #-8]
-	cmp r5, r0
-	bgt .L30
+	b .L47
+.L38:
+	add r5, r5, #1
+.L47:
+	cmp r5, #8
+	bgt .L35
 @       for k := 0 to N-1 do
 	mov r6, #0
-	mov r0, #8
-	str r0, [fp, #-4]
-.L31:
-	ldr r0, [fp, #-4]
-	cmp r6, r0
-	bgt .L32
+	b .L44
+.L41:
+	add r6, r6, #1
+.L44:
+	cmp r6, #8
+	bgt .L38
 @         MakeMove(i, j, k);
 	mov r2, r6
 	mov r1, r5
 	mov r0, r4
 	bl _MakeMove
-@       end
-	add r6, r6, #1
-	b .L31
-.L32:
-	add r5, r5, #1
-	b .L29
-.L30:
-	add r4, r4, #1
-	b .L27
-.L26:
+	b .L41
+.L37:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -791,18 +781,18 @@ _Cover:
 	ldr r0, [fp, #40]
 	ldr r0, [r0, #28]
 	ldr r4, [r0, #4]
-.L34:
+.L54:
 @   while q <> p^.head do
 	ldr r0, [fp, #40]
 	ldr r0, [r0, #28]
 	cmp r4, r0
-	beq .L33
+	beq .L53
 @     r := q^.right;
 	ldr r5, [r4, #12]
-.L37:
+.L57:
 @     while r <> q do
 	cmp r5, r4
-	beq .L39
+	beq .L59
 @       r^.up^.down := r^.down; r^.down^.up := r^.up;
 	ldr r0, [r5, #4]
 	ldr r1, [r5]
@@ -817,12 +807,12 @@ _Cover:
 	sub r0, r0, #1
 	str r0, [r6]
 	ldr r5, [r5, #12]
-	b .L37
-.L39:
+	b .L57
+.L59:
 @     q := q^.down
 	ldr r4, [r4, #4]
-	b .L34
-.L33:
+	b .L54
+.L53:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -843,18 +833,18 @@ _Uncover:
 	ldr r0, [fp, #40]
 	ldr r0, [r0, #28]
 	ldr r4, [r0]
-.L41:
+.L61:
 @   while q <> p^.head do
 	ldr r0, [fp, #40]
 	ldr r0, [r0, #28]
 	cmp r4, r0
-	beq .L43
+	beq .L63
 @     r := q^.left;
 	ldr r5, [r4, #8]
-.L44:
+.L64:
 @     while r <> q do
 	cmp r5, r4
-	beq .L46
+	beq .L66
 @       r^.up^.down := r; r^.down^.up := r;
 	ldr r0, [r5]
 	str r5, [r0, #4]
@@ -867,12 +857,12 @@ _Uncover:
 	add r0, r0, #1
 	str r0, [r6]
 	ldr r5, [r5, #8]
-	b .L44
-.L46:
+	b .L64
+.L66:
 @     q := q^.up
 	ldr r4, [r4]
-	b .L41
-.L43:
+	b .L61
+.L63:
 @   p^.covered := false
 	mov r0, #0
 	ldr r1, [fp, #40]
@@ -891,23 +881,23 @@ _ChooseColumn:
 	ldr r5, [r0, #24]
 @   c := col^.next;
 	ldr r4, [r5, #24]
-.L48:
+.L68:
 @   while c <> root do
 	set r0, _root
 	ldr r0, [r0]
 	cmp r4, r0
-	beq .L50
+	beq .L70
 @     if c^.size < col^.size then col := c end;
 	ldr r0, [r4, #12]
 	ldr r1, [r5, #12]
 	cmp r0, r1
-	bge .L53
+	bge .L73
 	mov r5, r4
-.L53:
+.L73:
 @     c := c^.next
 	ldr r4, [r4, #24]
-	b .L48
-.L50:
+	b .L68
+.L70:
 @   return col
 	mov r0, r5
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -922,20 +912,20 @@ _PrintState:
 	sub sp, sp, #104
 @   for i := 0 to N-1 do
 	mov r4, #0
-	mov r0, #8
-	str r0, [fp, #-96]
-.L55:
-	ldr r0, [fp, #-96]
-	cmp r4, r0
-	bgt .L56
+	b .L84
+.L75:
+	add r4, r4, #1
+.L84:
+	cmp r4, #8
+	bgt .L77
 @     for j := 0 to N-1 do
 	mov r5, #0
-	mov r0, #8
-	str r0, [fp, #-92]
-.L57:
-	ldr r0, [fp, #-92]
-	cmp r5, r0
-	bgt .L58
+	b .L81
+.L78:
+	add r5, r5, #1
+.L81:
+	cmp r5, #8
+	bgt .L75
 @       board[i][j] := '.'
 	mov r0, #46
 	add r1, fp, #-85
@@ -944,38 +934,35 @@ _PrintState:
 	add r1, r1, r2
 	add r1, r1, r5
 	strb r0, [r1]
-	add r5, r5, #1
-	b .L57
-.L58:
-	add r4, r4, #1
-	b .L55
-.L56:
+	b .L78
+.L77:
 @   for k := 0 to level-1 do
 	mov r6, #0
+	b .L93
+.L87:
+	add r6, r6, #1
+.L93:
 	ldr r0, [fp, #40]
 	sub r0, r0, #1
-	str r0, [fp, #-100]
-.L59:
-	ldr r0, [fp, #-100]
 	cmp r6, r0
-	bgt .L60
+	bgt .L89
 @     p := choice[k];
 	set r0, _choice
 	lsl r1, r6, #2
 	add r0, r0, r1
 	ldr r0, [r0]
 	str r0, [fp, #-4]
-.L61:
+.L90:
 @     while p^.column^.name <> 'Q' do p := p^.right end;
 	ldr r7, [fp, #-4]
 	ldr r0, [r7, #16]
 	ldrb r0, [r0]
 	cmp r0, #81
-	beq .L63
+	beq .L92
 	ldr r0, [r7, #12]
 	str r0, [fp, #-4]
-	b .L61
-.L63:
+	b .L90
+.L92:
 @     i := p^.column^.x - 1; j := p^.column^.y - 1;
 	ldr r7, [fp, #-4]
 	ldr r8, [r7, #16]
@@ -994,17 +981,16 @@ _PrintState:
 	add r1, r1, r2
 	add r1, r1, r5
 	strb r0, [r1]
-	add r6, r6, #1
-	b .L59
-.L60:
+	b .L87
+.L89:
 @   for i := 0 to N-1 do
 	mov r4, #0
-	mov r0, #8
-	str r0, [fp, #-104]
-.L64:
-	ldr r0, [fp, #-104]
-	cmp r4, r0
-	bgt .L54
+	b .L99
+.L96:
+	add r4, r4, #1
+.L99:
+	cmp r4, #8
+	bgt .L74
 @     print_string(board[i]); newline()
 	mov r1, #9
 	add r0, fp, #-85
@@ -1013,9 +999,8 @@ _PrintState:
 	add r0, r0, r2
 	bl print_string
 	bl newline
-	add r4, r4, #1
-	b .L64
-.L54:
+	b .L96
+.L74:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -1030,7 +1015,7 @@ _Solve:
 	ldr r7, [r0]
 	ldr r0, [r7, #24]
 	cmp r0, r7
-	bne .L69
+	bne .L105
 @     print_string("Solution:"); newline();
 	mov r1, #9
 	set r0, g5
@@ -1039,26 +1024,26 @@ _Solve:
 @     PrintState(level); return
 	ldr r0, [fp, #40]
 	bl _PrintState
-	b .L66
-.L69:
+	b .L102
+.L105:
 @   col := ChooseColumn();
 	bl _ChooseColumn
 	mov r4, r0
 @   if col^.size = 0 then return end;
 	ldr r0, [r4, #12]
 	cmp r0, #0
-	beq .L66
+	beq .L102
 @   Cover(col);
 	mov r0, r4
 	bl _Cover
 @   p := col^.head^.down;
 	ldr r0, [r4, #28]
 	ldr r5, [r0, #4]
-.L73:
+.L109:
 @   while p <> col^.head do
 	ldr r0, [r4, #28]
 	cmp r5, r0
-	beq .L75
+	beq .L111
 @     choice[level] := p;
 	ldr r7, [fp, #40]
 	set r0, _choice
@@ -1075,38 +1060,38 @@ _Solve:
 	bl _PrintRow
 @     q := p^.right;
 	ldr r6, [r5, #12]
-.L76:
+.L112:
 @     while q <> p do Cover(q^.column); q := q^.right end;
 	cmp r6, r5
-	beq .L78
+	beq .L114
 	ldr r0, [r6, #16]
 	bl _Cover
 	ldr r6, [r6, #12]
-	b .L76
-.L78:
+	b .L112
+.L114:
 @     Solve(level+1);
 	ldr r0, [fp, #40]
 	add r0, r0, #1
 	bl _Solve
 @     q := p^.left;
 	ldr r6, [r5, #8]
-.L79:
+.L115:
 @     while q <> p do Uncover(q^.column); q := q^.left end;
 	cmp r6, r5
-	beq .L81
+	beq .L117
 	ldr r0, [r6, #16]
 	bl _Uncover
 	ldr r6, [r6, #8]
-	b .L79
-.L81:
+	b .L115
+.L117:
 @     p := p^.down
 	ldr r5, [r5, #4]
-	b .L73
-.L75:
+	b .L109
+.L111:
 @   Uncover(col)
 	mov r0, r4
 	bl _Uncover
-.L66:
+.L102:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -1129,12 +1114,12 @@ _ChooseRow:
 	str r0, [r5]
 @   q := p;
 	ldr r4, [fp, #44]
-.L83:
+.L119:
 @     if q^.column^.covered then
 	ldr r0, [r4, #16]
 	ldrb r0, [r0, #16]
 	cmp r0, #0
-	beq .L87
+	beq .L123
 @       print_string("Conflict for "); PrintCol(q^.column); newline()
 	mov r1, #13
 	set r0, g7
@@ -1142,14 +1127,14 @@ _ChooseRow:
 	ldr r0, [r4, #16]
 	bl _PrintCol
 	bl newline
-.L87:
+.L123:
 @     Cover(q^.column); q := q^.right
 	ldr r0, [r4, #16]
 	bl _Cover
 	ldr r4, [r4, #12]
 	ldr r0, [fp, #44]
 	cmp r4, r0
-	bne .L83
+	bne .L119
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -1162,20 +1147,20 @@ _Input:
 	sub sp, sp, #16
 @   for i := 0 to N-1 do
 	mov r4, #0
-	mov r0, #8
-	str r0, [fp, #-12]
-.L89:
-	ldr r0, [fp, #-12]
-	cmp r4, r0
-	bgt .L88
+	b .L137
+.L125:
+	add r4, r4, #1
+.L137:
+	cmp r4, #8
+	bgt .L124
 @     for j := 0 to N-1 do
 	mov r5, #0
-	mov r0, #8
-	str r0, [fp, #-8]
-.L91:
-	ldr r0, [fp, #-8]
-	cmp r5, r0
-	bgt .L92
+	b .L134
+.L128:
+	add r5, r5, #1
+.L134:
+	cmp r5, #8
+	bgt .L130
 @       ch := input[10*i+j];
 	set r0, g8
 	mov r1, #10
@@ -1190,7 +1175,7 @@ _Input:
 @       if ch <> '.' then
 	ldrb r7, [fp, #-1]
 	cmp r7, #46
-	beq .L95
+	beq .L128
 @         k := ord(ch) - ord('1');
 	sub r6, r7, #49
 @ 	ChooseRow(level, boardMove[i][j][k])
@@ -1206,15 +1191,12 @@ _Input:
 	ldr r1, [r0]
 	ldr r0, [fp, #40]
 	bl _ChooseRow
-.L95:
-	add r5, r5, #1
-	b .L91
-.L92:
+	b .L128
+.L130:
 @     newline()
 	bl newline
-	add r4, r4, #1
-	b .L89
-.L88:
+	b .L125
+.L124:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 

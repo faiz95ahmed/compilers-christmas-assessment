@@ -170,11 +170,16 @@ pmain:
 	mov r0, #0
 	set r1, _n
 	str r0, [r1]
-	mov r4, #7
+	b .L17
 .L14:
+	set r5, _n
+	ldr r0, [r5]
+	add r0, r0, #1
+	str r0, [r5]
+.L17:
 	set r0, _n
 	ldr r5, [r0]
-	cmp r5, r4
+	cmp r5, #7
 	bgt .L13
 @     p := build(n);
 	mov r0, r5
@@ -191,10 +196,6 @@ pmain:
 	ldr r0, [r0]
 	bl _print
 	bl newline
-	set r5, _n
-	ldr r0, [r5]
-	add r0, r0, #1
-	str r0, [r5]
 	b .L14
 .L13:
 	ldmfd fp, {r4-r10, fp, sp, pc}

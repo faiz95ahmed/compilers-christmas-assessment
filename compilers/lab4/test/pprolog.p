@@ -1883,10 +1883,12 @@ _prog:
 	mov fp, sp
 @   for i := 0 to 59 do
 	mov r4, #0
-	mov r5, #59
+	b .L181
 .L178:
-	cmp r4, r5
-	bgt .L179
+	add r4, r4, #1
+.L181:
+	cmp r4, #59
+	bgt .L180
 @     infile[pin] := line[i]; pin := pin+1
 	set r6, _pin
 	ldr r0, [fp, #40]
@@ -1899,9 +1901,8 @@ _prog:
 	ldr r0, [r6]
 	add r0, r0, #1
 	str r0, [r6]
-	add r4, r4, #1
 	b .L178
-.L179:
+.L180:
 @   infile[pin] := ENDLINE; pin := pin+1
 	set r6, _pin
 	mov r0, #10
@@ -1927,13 +1928,13 @@ _rdchar:
 	set r1, _pin
 	ldr r1, [r1]
 	cmp r0, r1
-	blt .L182
+	blt .L186
 @     ch := ENDFILE
 	mov r0, #127
 	ldr r1, [fp, #40]
 	strb r0, [r1]
-	b .L180
-.L182:
+	b .L184
+.L186:
 @     ch := infile[pout]; pout := pout+1
 	set r4, _pout
 	set r0, _infile
@@ -1945,7 +1946,7 @@ _rdchar:
 	ldr r0, [r4]
 	add r0, r0, #1
 	str r0, [r4]
-.L180:
+.L184:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -1959,25 +1960,25 @@ _GetChar:
 	set r4, _pbchar
 	ldrb r5, [r4]
 	cmp r5, #127
-	beq .L186
+	beq .L190
 @     ch := pbchar; pbchar := ENDFILE
 	strb r5, [fp, #-1]
 	mov r0, #127
 	strb r0, [r4]
-	b .L187
-.L186:
+	b .L191
+.L190:
 @     rdchar(ch);
 	add r0, fp, #-1
 	bl _rdchar
 @     if ch = ENDLINE then lineno := lineno+1 end
 	ldrb r0, [fp, #-1]
 	cmp r0, #10
-	bne .L187
+	bne .L191
 	set r4, _lineno
 	ldr r0, [r4]
 	add r0, r0, #1
 	str r0, [r4]
-.L187:
+.L191:
 @   return ch
 	ldrb r0, [fp, #-1]
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -2005,7 +2006,7 @@ _Deref:
 @   if t = NULL then newline(); print_string("Panic: "); print_string("Deref"); newline(); exit(2) end;
 	ldr r0, [fp, #40]
 	cmp r0, #0
-	bne .L195
+	bne .L199
 	bl newline
 	mov r1, #7
 	set r0, g9
@@ -2016,7 +2017,7 @@ _Deref:
 	bl newline
 	mov r0, #2
 	bl exit
-.L195:
+.L199:
 @   if (lsr(mem[t], 8) = REF) and (e <> NULL) then
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2025,10 +2026,10 @@ _Deref:
 	ldr r0, [r4]
 	lsr r0, r0, #8
 	cmp r0, #5
-	bne .L200
+	bne .L204
 	ldr r5, [fp, #44]
 	cmp r5, #0
-	beq .L200
+	beq .L204
 @     t := (e+7+(mem[t+1]-1)*TERM_SIZE)
 	add r0, r5, #7
 	ldr r1, [r4, #4]
@@ -2036,7 +2037,7 @@ _Deref:
 	sub r1, r1, #2
 	add r0, r0, r1
 	str r0, [fp, #40]
-.L200:
+.L204:
 @   while (lsr(mem[t], 8) = CELL) and (mem[t+1] <> NULL) do
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2045,14 +2046,14 @@ _Deref:
 	ldr r0, [r4]
 	lsr r0, r0, #8
 	cmp r0, #4
-	bne .L202
+	bne .L206
 	ldr r4, [r4, #4]
 	cmp r4, #0
-	beq .L202
+	beq .L206
 @     t := mem[t+1]
 	str r4, [fp, #40]
-	b .L200
-.L202:
+	b .L204
+.L206:
 @   return t
 	ldr r0, [fp, #40]
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -2067,13 +2068,13 @@ _Lookup:
 @   h := 0; i := 0;
 	mov r4, #0
 	mov r5, #0
-.L205:
+.L209:
 @   while name[i] <> ENDSTR do
 	ldr r0, [fp, #40]
 	add r0, r0, r5
 	ldrb r7, [r0]
 	cmp r7, #0
-	beq .L207
+	beq .L211
 @     h := (5 * h + ord(name[i])) mod MAXSYMBOLS; i := i+1 
 	set r1, #511
 	mov r0, #5
@@ -2082,11 +2083,11 @@ _Lookup:
 	bl int_mod
 	mov r4, r0
 	add r5, r5, #1
-	b .L205
-.L207:
+	b .L209
+.L211:
 @   p := h+1;
 	add r6, r4, #1
-.L208:
+.L212:
 @   while symtab[p].name <> -1 do
 	set r0, _symtab
 	lsl r1, r6, #4
@@ -2094,30 +2095,30 @@ _Lookup:
 	ldr r7, [r0]
 	mov r0, #-1
 	cmp r7, r0
-	beq .L210
+	beq .L214
 @     if StringEqual(name, symtab[p].name) then return p end;
 	mov r1, r7
 	ldr r0, [fp, #40]
 	bl _StringEqual
 	cmp r0, #0
-	beq .L213
+	beq .L217
 	mov r0, r6
-	b .L204
-.L213:
+	b .L208
+.L217:
 @     p := p-1;
 	sub r6, r6, #1
 @     if p = 0 then p := MAXSYMBOLS end
 	cmp r6, #0
-	bne .L208
+	bne .L212
 	set r6, #511
-	b .L208
-.L210:
+	b .L212
+.L214:
 @   if nsymbols >= (MAXSYMBOLS div 10) * (HASHFACTOR div 10) then
 	set r0, _nsymbols
 	ldr r0, [r0]
 	set r1, #459
 	cmp r0, r1
-	blt .L219
+	blt .L223
 @     newline(); print_string("Panic: "); print_string("out of symbol space"); newline(); exit(2)
 	bl newline
 	mov r1, #7
@@ -2129,7 +2130,7 @@ _Lookup:
 	bl newline
 	mov r0, #2
 	bl exit
-.L219:
+.L223:
 @   symtab[p].name := SaveString(name);
 	ldr r0, [fp, #40]
 	bl _SaveString
@@ -2147,7 +2148,7 @@ _Lookup:
 	str r0, [r7, #12]
 @   return p
 	mov r0, r6
-.L204:
+.L208:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -2160,20 +2161,20 @@ _Enter:
 	sub sp, sp, #128
 @   i := 0;
 	mov r5, #0
-.L221:
+.L225:
 @   while name[i] <> ' ' do
 	ldr r0, [fp, #40]
 	add r0, r0, r5
 	ldrb r6, [r0]
 	cmp r6, #32
-	beq .L223
+	beq .L227
 @     temp[i] := name[i]; i := i+1 
 	add r0, fp, #-128
 	add r0, r0, r5
 	strb r6, [r0]
 	add r5, r5, #1
-	b .L221
-.L223:
+	b .L225
+.L227:
 @   temp[i] := ENDSTR; s := Lookup(temp);
 	mov r0, #0
 	add r1, fp, #-128
@@ -2206,18 +2207,20 @@ _InitSymbols:
 	str r0, [r1]
 @   for i := 1 to MAXSYMBOLS do symtab[i].name := -1 end;
 	mov r4, #1
-	set r6, #511
-.L225:
-	cmp r4, r6
-	bgt .L226
+	b .L232
+.L229:
+	add r4, r4, #1
+.L232:
+	set r0, #511
+	cmp r4, r0
+	bgt .L231
 	mov r0, #-1
 	set r1, _symtab
 	lsl r2, r4, #4
 	add r1, r1, r2
 	str r0, [r1]
-	add r4, r4, #1
-	b .L225
-.L226:
+	b .L229
+.L231:
 @   cons   := Enter(":       ", 2, 0);
 	mov r2, #0
 	mov r1, #2
@@ -2332,7 +2335,7 @@ _AddClause:
 	add r0, r0, r1
 	ldr r0, [r0, #8]
 	cmp r0, #0
-	beq .L229
+	beq .L237
 @     newline(); print_string("Error: "); print_string("cannot add clauses to built-in relation "); run := false;
 	bl newline
 	mov r1, #7
@@ -2350,8 +2353,8 @@ _AddClause:
 	add r0, r0, r1
 	ldr r0, [r0]
 	bl _WriteString
-	b .L227
-.L229:
+	b .L235
+.L237:
 @   elsif symtab[s].prok = NULL then
 	set r0, _symtab
 	lsl r1, r4, #4
@@ -2359,35 +2362,35 @@ _AddClause:
 	add r6, r0, #12
 	ldr r0, [r6]
 	cmp r0, #0
-	bne .L232
+	bne .L240
 @     symtab[s].prok := c
 	ldr r0, [fp, #40]
 	str r0, [r6]
-	b .L227
-.L232:
+	b .L235
+.L240:
 @     p := symtab[s].prok;
 	set r0, _symtab
 	lsl r1, r4, #4
 	add r0, r0, r1
 	ldr r5, [r0, #12]
-.L234:
+.L242:
 @     while mem[p+2] <> NULL do p := mem[p+2] end;
 	set r0, _mem
 	lsl r1, r5, #2
 	add r0, r0, r1
 	ldr r6, [r0, #8]
 	cmp r6, #0
-	beq .L236
+	beq .L244
 	mov r5, r6
-	b .L234
-.L236:
+	b .L242
+.L244:
 @     mem[p+2] := c
 	ldr r0, [fp, #40]
 	set r1, _mem
 	lsl r2, r5, #2
 	add r1, r1, r2
 	str r0, [r1, #8]
-.L227:
+.L235:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -2420,11 +2423,12 @@ _MakeCompound:
 	str r0, [r7, #4]
 @   for i := 1 to n do mem[p+i+1] := arg[i] end;
 	mov r5, #1
-	str r6, [fp, #-4]
-.L238:
-	ldr r0, [fp, #-4]
-	cmp r5, r0
-	bgt .L239
+	b .L249
+.L246:
+	add r5, r5, #1
+.L249:
+	cmp r5, r6
+	bgt .L248
 	ldr r0, [fp, #44]
 	lsl r1, r5, #2
 	add r0, r0, r1
@@ -2434,9 +2438,8 @@ _MakeCompound:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-	add r5, r5, #1
-	b .L238
-.L239:
+	b .L246
+.L248:
 @   return p
 	mov r0, r4
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -2539,10 +2542,10 @@ _MakeString:
 	ldr r0, [r0]
 	bl _MakeNode
 	mov r4, r0
-.L245:
+.L257:
 @   while i > 0 do
 	cmp r5, #0
-	ble .L247
+	ble .L259
 @     i := i-1; p := MakeNode(cons, MakeChar(s[i]), p)
 	sub r5, r5, #1
 	ldr r0, [fp, #40]
@@ -2555,8 +2558,8 @@ _MakeString:
 	ldr r0, [r0]
 	bl _MakeNode
 	mov r4, r0
-	b .L245
-.L247:
+	b .L257
+.L259:
 @   return p
 	mov r0, r4
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -2586,10 +2589,13 @@ _MakeClause:
 	str r0, [r7, #12]
 @   for i := 1 to nbody do mem[(p+4)+i-1] := body[i] end;
 	mov r5, #1
-	ldr r6, [fp, #52]
-.L249:
-	cmp r5, r6
-	bgt .L250
+	b .L264
+.L261:
+	add r5, r5, #1
+.L264:
+	ldr r0, [fp, #52]
+	cmp r5, r0
+	bgt .L263
 	ldr r0, [fp, #48]
 	lsl r1, r5, #2
 	add r0, r0, r1
@@ -2600,9 +2606,8 @@ _MakeClause:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #-4]
-	add r5, r5, #1
-	b .L249
-.L250:
+	b .L261
+.L263:
 @   mem[(p+4)+nbody+1-1] := NULL;
 	set r7, _mem
 	mov r0, #0
@@ -2615,14 +2620,14 @@ _MakeClause:
 @   if head = NULL then 
 	ldr r0, [fp, #44]
 	cmp r0, #0
-	bne .L252
+	bne .L268
 @     mem[p+1] := 0
 	mov r0, #0
 	lsl r1, r4, #2
 	add r1, r7, r1
 	str r0, [r1, #4]
-	b .L253
-.L252:
+	b .L269
+.L268:
 @     mem[p+1] := Key(head, NULL)
 	mov r1, #0
 	ldr r0, [fp, #44]
@@ -2631,7 +2636,7 @@ _MakeClause:
 	lsl r2, r4, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-.L253:
+.L269:
 @   return p
 	mov r0, r4
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -2649,10 +2654,10 @@ _IsString:
 	ldr r0, [fp, #40]
 	bl _Deref
 	str r0, [fp, #40]
-.L255:
+.L271:
 @   while i < limit do
 	cmp r4, #128
-	bge .L257
+	bge .L273
 @     if (lsr(mem[t], 8) <> FUNC) or (mem[t+1] <> cons) then
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2661,13 +2666,13 @@ _IsString:
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #1
-	bne .L258
+	bne .L274
 	ldr r0, [r5, #4]
 	set r1, _cons
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L259
-.L258:
+	beq .L275
+.L274:
 @       return (lsr(mem[t], 8) = FUNC) and (mem[t+1] = nilsym)
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2685,8 +2690,8 @@ _IsString:
 	mov r1, #0
 	moveq r1, #1
 	and r0, r0, r1
-	b .L254
-.L259:
+	b .L270
+.L275:
 @     elsif lsr(mem[Deref(mem[t+1+1], e)], 8) <> CHRCTR then
 	set r5, _mem
 	ldr r1, [fp, #44]
@@ -2700,11 +2705,11 @@ _IsString:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #3
-	beq .L262
+	beq .L278
 @       return false
 	mov r0, #0
-	b .L254
-.L262:
+	b .L270
+.L278:
 @       i := i+1; t := Deref(mem[t+2+1], e) 
 	add r4, r4, #1
 	ldr r1, [fp, #44]
@@ -2715,11 +2720,11 @@ _IsString:
 	ldr r0, [r0, #12]
 	bl _Deref
 	str r0, [fp, #40]
-	b .L255
-.L257:
+	b .L271
+.L273:
 @   return false
 	mov r0, #0
-.L254:
+.L270:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -2735,10 +2740,10 @@ _IsList:
 	ldr r0, [fp, #40]
 	bl _Deref
 	str r0, [fp, #40]
-.L266:
+.L282:
 @   while i < limit do
 	cmp r4, #128
-	bge .L268
+	bge .L284
 @     if (lsr(mem[t], 8) <> FUNC) or (mem[t+1] <> cons) then
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2747,13 +2752,13 @@ _IsList:
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #1
-	bne .L269
+	bne .L285
 	ldr r0, [r5, #4]
 	set r1, _cons
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L270
-.L269:
+	beq .L286
+.L285:
 @       return (lsr(mem[t], 8) = FUNC) and (mem[t+1] = nilsym)
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -2771,8 +2776,8 @@ _IsList:
 	mov r1, #0
 	moveq r1, #1
 	and r0, r0, r1
-	b .L265
-.L270:
+	b .L281
+.L286:
 @       i := i+1; t := Deref(mem[t+2+1], e)
 	add r4, r4, #1
 	ldr r1, [fp, #44]
@@ -2783,11 +2788,11 @@ _IsList:
 	ldr r0, [r0, #12]
 	bl _Deref
 	str r0, [fp, #40]
-	b .L266
-.L268:
+	b .L282
+.L284:
 @   return false
 	mov r0, #0
-.L265:
+.L281:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -2805,7 +2810,7 @@ _ShowString:
 @   print_char('"');
 	mov r0, #34
 	bl print_char
-.L274:
+.L290:
 @   while mem[t+1] <> nilsym do
 	set r4, _mem
 	ldr r0, [fp, #40]
@@ -2815,7 +2820,7 @@ _ShowString:
 	set r1, _nilsym
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L276
+	beq .L292
 @     print_char(chr(mem[Deref(mem[t+1+1], e)+1]));
 	ldr r1, [fp, #44]
 	ldr r0, [r5, #8]
@@ -2834,8 +2839,8 @@ _ShowString:
 	ldr r0, [r0, #12]
 	bl _Deref
 	str r0, [fp, #40]
-	b .L274
-.L276:
+	b .L290
+.L292:
 @   print_char('"')
 	mov r0, #34
 	bl print_char
@@ -2858,26 +2863,26 @@ _PrintCompound:
 	set r0, _cons
 	ldr r0, [r0]
 	cmp r4, r0
-	bne .L279
+	bne .L295
 @     if IsString(t, e) then
 	ldr r1, [fp, #44]
 	mov r0, r7
 	bl _IsString
 	cmp r0, #0
-	beq .L303
+	beq .L323
 @       ShowString(t, e)
 	ldr r1, [fp, #44]
 	ldr r0, [fp, #40]
 	bl _ShowString
-	b .L277
-.L303:
+	b .L293
+.L323:
 @       if prio < CONSPRIO then print_char('(') end;
 	ldr r0, [fp, #48]
 	cmp r0, #1
-	bge .L307
+	bge .L327
 	mov r0, #40
 	bl print_char
-.L307:
+.L327:
 @       PrintTerm(mem[t+1+1], e, CONSPRIO-1);
 	mov r2, #0
 	ldr r1, [fp, #44]
@@ -2902,23 +2907,23 @@ _PrintCompound:
 @       if prio < CONSPRIO then print_char(')') end
 	ldr r0, [fp, #48]
 	cmp r0, #1
-	bge .L277
+	bge .L293
 	mov r0, #41
 	bl print_char
-	b .L277
-.L279:
+	b .L293
+.L295:
 @   elsif f = eqsym then
 	set r0, _eqsym
 	ldr r0, [r0]
 	cmp r4, r0
-	bne .L282
+	bne .L298
 @     if prio < EQPRIO then print_char('(') end;
 	ldr r0, [fp, #48]
 	cmp r0, #2
-	bge .L298
+	bge .L318
 	mov r0, #40
 	bl print_char
-.L298:
+.L318:
 @     PrintTerm(mem[t+1+1], e, EQPRIO-1);
 	mov r2, #1
 	ldr r1, [fp, #44]
@@ -2944,16 +2949,16 @@ _PrintCompound:
 @     if prio < EQPRIO then print_char(')') end
 	ldr r0, [fp, #48]
 	cmp r0, #2
-	bge .L277
+	bge .L293
 	mov r0, #41
 	bl print_char
-	b .L277
-.L282:
+	b .L293
+.L298:
 @   elsif f = notsym then
 	set r0, _notsym
 	ldr r0, [r0]
 	cmp r4, r0
-	bne .L285
+	bne .L301
 @     print_string("not ");
 	mov r1, #4
 	set r0, g30
@@ -2967,13 +2972,13 @@ _PrintCompound:
 	add r0, r0, r3
 	ldr r0, [r0, #8]
 	bl _PrintTerm
-	b .L277
-.L285:
+	b .L293
+.L301:
 @   elsif (f = node) and IsList(mem[t+2+1], e) then
 	set r0, _node
 	ldr r0, [r0]
 	cmp r4, r0
-	bne .L288
+	bne .L304
 	ldr r1, [fp, #44]
 	set r0, _mem
 	ldr r2, [fp, #40]
@@ -2982,13 +2987,13 @@ _PrintCompound:
 	ldr r0, [r0, #12]
 	bl _IsList
 	cmp r0, #0
-	beq .L288
+	beq .L304
 @     PrintNode(t, e)
 	ldr r1, [fp, #44]
 	ldr r0, [fp, #40]
 	bl _PrintNode
-	b .L277
-.L288:
+	b .L293
+.L304:
 @     WriteString(symtab[f].name);
 	set r0, _symtab
 	lsl r1, r4, #4
@@ -3001,7 +3006,7 @@ _PrintCompound:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	cmp r0, #0
-	ble .L277
+	ble .L293
 @       print_char('(');
 	mov r0, #40
 	bl print_char
@@ -3016,13 +3021,16 @@ _PrintCompound:
 	bl _PrintTerm
 @       for i := 2 to symtab[f].arity do
 	mov r5, #2
+	b .L312
+.L309:
+	add r5, r5, #1
+.L312:
 	set r0, _symtab
 	lsl r1, r4, #4
 	add r0, r0, r1
-	ldr r6, [r0, #4]
-.L293:
-	cmp r5, r6
-	bgt .L294
+	ldr r0, [r0, #4]
+	cmp r5, r0
+	bgt .L311
 @         print_string(", ");
 	mov r1, #2
 	set r0, g31
@@ -3037,13 +3045,12 @@ _PrintCompound:
 	add r0, r0, r3
 	ldr r0, [r0, #4]
 	bl _PrintTerm
-	add r5, r5, #1
-	b .L293
-.L294:
+	b .L309
+.L311:
 @       print_char(')')
 	mov r0, #41
 	bl print_char
-.L277:
+.L293:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3074,7 +3081,7 @@ _PrintNode:
 	ldr r0, [r0, #12]
 	bl _Deref
 	mov r4, r0
-.L312:
+.L332:
 @   while mem[u+1] <> nilsym do
 	set r0, _mem
 	lsl r1, r4, #2
@@ -3083,7 +3090,7 @@ _PrintNode:
 	set r1, _nilsym
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L314
+	beq .L334
 @     print_string(", ");
 	mov r1, #2
 	set r0, g32
@@ -3104,8 +3111,8 @@ _PrintNode:
 	ldr r0, [r0, #12]
 	bl _Deref
 	mov r4, r0
-	b .L312
-.L314:
+	b .L332
+.L334:
 @   print_char('>');
 	mov r0, #62
 	bl print_char
@@ -3125,13 +3132,13 @@ _PrintTerm:
 	str r0, [fp, #40]
 @   if t = NULL then
 	cmp r0, #0
-	bne .L317
+	bne .L337
 @     print_string("*null-term*")
 	mov r1, #11
 	set r0, g33
 	bl print_string
-	b .L315
-.L317:
+	b .L335
+.L337:
 @     case lsr(mem[t], 8) of
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -3142,20 +3149,20 @@ _PrintTerm:
 	sub r0, r0, #1
 	cmp r0, #5
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L319
-	.word .L321
-	.word .L322
-	.word .L323
-	.word .L324
-	.word .L325
-.L321:
+	b .L339
+	.word .L341
+	.word .L342
+	.word .L343
+	.word .L344
+	.word .L345
+.L341:
 @         PrintCompound(t, e, prio)
 	ldr r2, [fp, #48]
 	ldr r1, [fp, #44]
 	ldr r0, [fp, #40]
 	bl _PrintCompound
-	b .L315
-.L322:
+	b .L335
+.L342:
 @         print_num(mem[t+1])
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -3163,8 +3170,8 @@ _PrintTerm:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	bl print_num
-	b .L315
-.L323:
+	b .L335
+.L343:
 @         print_char(''''); print_char(chr(mem[t+1])); print_char('''')
 	mov r0, #39
 	bl print_char
@@ -3176,14 +3183,14 @@ _PrintTerm:
 	bl print_char
 	mov r0, #39
 	bl print_char
-	b .L315
-.L324:
+	b .L335
+.L344:
 @         if (t >= gsp) then
 	ldr r0, [fp, #40]
 	set r1, _gsp
 	ldr r1, [r1]
 	cmp r0, r1
-	blt .L327
+	blt .L347
 @           print_char('G'); print_num((MEMSIZE - t) div TERM_SIZE)
 	mov r0, #71
 	bl print_char
@@ -3193,8 +3200,8 @@ _PrintTerm:
 	sub r0, r0, r2
 	bl int_div
 	bl print_num
-	b .L315
-.L327:
+	b .L335
+.L347:
 @           print_char('L'); print_num((t - hp) div TERM_SIZE)
 	mov r0, #76
 	bl print_char
@@ -3205,8 +3212,8 @@ _PrintTerm:
 	sub r0, r0, r2
 	bl int_div
 	bl print_num
-	b .L315
-.L325:
+	b .L335
+.L345:
 @         print_char('@'); print_num(mem[t+1])
 	mov r0, #64
 	bl print_char
@@ -3216,8 +3223,8 @@ _PrintTerm:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	bl print_num
-	b .L315
-.L319:
+	b .L335
+.L339:
 @       print_string("*unknown-term(tag="); 
 	mov r1, #18
 	set r0, g34
@@ -3233,7 +3240,7 @@ _PrintTerm:
 	mov r1, #2
 	set r0, g35
 	bl print_string
-.L315:
+.L335:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3246,14 +3253,14 @@ _PrintClause:
 @   if c = NULL then
 	ldr r0, [fp, #40]
 	cmp r0, #0
-	bne .L331
+	bne .L351
 @     print_string("*null-clause*"); newline();
 	mov r1, #13
 	set r0, g36
 	bl print_string
 	bl newline
-	b .L329
-.L331:
+	b .L349
+.L351:
 @     if mem[c+3] <> NULL then
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -3261,7 +3268,7 @@ _PrintClause:
 	add r0, r0, r1
 	ldr r5, [r0, #12]
 	cmp r5, #0
-	beq .L335
+	beq .L355
 @       PrintTerm(mem[c+3], NULL, MAXPRIO);
 	mov r2, #2
 	mov r1, #0
@@ -3270,7 +3277,7 @@ _PrintClause:
 @       print_char(' ')
 	mov r0, #32
 	bl print_char
-.L335:
+.L355:
 @     print_string(":- ");
 	mov r1, #3
 	set r0, g37
@@ -3282,7 +3289,7 @@ _PrintClause:
 	add r0, r0, r1
 	ldr r5, [r0, #16]
 	cmp r5, #0
-	beq .L338
+	beq .L358
 @       PrintTerm(mem[(c+4)+1-1], NULL, MAXPRIO);
 	mov r2, #2
 	mov r1, #0
@@ -3290,7 +3297,7 @@ _PrintClause:
 	bl _PrintTerm
 @       i := 2;
 	mov r4, #2
-.L339:
+.L359:
 @       while mem[(c+4)+i-1] <> NULL do
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -3300,7 +3307,7 @@ _PrintClause:
 	add r0, r0, r1
 	ldr r0, [r0, #-4]
 	cmp r0, #0
-	beq .L338
+	beq .L358
 @ 	print_string(", ");
 	mov r1, #2
 	set r0, g38
@@ -3318,13 +3325,13 @@ _PrintClause:
 	bl _PrintTerm
 @ 	i := i+1
 	add r4, r4, #1
-	b .L339
-.L338:
+	b .L359
+.L358:
 @     print_char('.'); newline()
 	mov r0, #46
 	bl print_char
 	bl newline
-.L329:
+.L349:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3366,7 +3373,7 @@ _Recover:
 	set r0, _errcount
 	ldr r0, [r0]
 	cmp r0, #20
-	blt .L346
+	blt .L366
 @     print_string("Too many errors: I am giving up"); newline(); exit(2) 
 	mov r1, #31
 	set r0, g41
@@ -3374,26 +3381,26 @@ _Recover:
 	bl newline
 	mov r0, #2
 	bl exit
-.L346:
+.L366:
 @   if token <> DOT then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #10
-	beq .L343
-.L350:
+	beq .L363
+.L370:
 @       ch := GetChar()
 	bl _GetChar
 	mov r4, r0
 	cmp r4, #46
-	beq .L351
+	beq .L371
 	cmp r4, #127
-	bne .L350
-.L351:
+	bne .L370
+.L371:
 @     token := DOT
 	mov r0, #10
 	set r1, _token
 	str r0, [r1]
-.L343:
+.L363:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3408,90 +3415,90 @@ _Scan:
 	mov r0, #0
 	set r1, _token
 	str r0, [r1]
-.L354:
+.L374:
 @   while token = 0 do
 	set r7, _token
 	ldr r0, [r7]
 	cmp r0, #0
-	bne .L353
+	bne .L373
 @     if ch = ENDFILE then
 	cmp r4, #127
-	bne .L358
+	bne .L378
 @       token := EOFTOK
 	mov r0, #14
 	str r0, [r7]
-	b .L354
-.L358:
+	b .L374
+.L378:
 @     elsif (ch = ' ') or (ch = TAB) or (ch = ENDLINE) then
 	cmp r4, #32
-	beq .L360
+	beq .L380
 	cmp r4, #9
-	beq .L360
+	beq .L380
 	cmp r4, #10
-	bne .L361
-.L360:
+	bne .L381
+.L380:
 @       ch := GetChar()
 	bl _GetChar
 	mov r4, r0
-	b .L354
-.L361:
+	b .L374
+.L381:
 @     elsif ((((ch >= 'A') and (ch <= 'Z')) or (ch = '_')) or ((ch >= 'a') and (ch <= 'z'))) then
 	cmp r4, #65
-	blt .L450
+	blt .L470
 	cmp r4, #90
-	ble .L363
-.L450:
+	ble .L383
+.L470:
 	cmp r4, #95
-	beq .L363
+	beq .L383
 	cmp r4, #97
-	blt .L364
+	blt .L384
 	cmp r4, #122
-	bgt .L364
-.L363:
+	bgt .L384
+.L383:
 @       if (((ch >= 'A') and (ch <= 'Z')) or (ch = '_')) then 
 	cmp r4, #65
-	blt .L431
+	blt .L451
 	cmp r4, #90
-	ble .L428
-.L431:
+	ble .L448
+.L451:
 	cmp r4, #95
-	bne .L429
-.L428:
+	bne .L449
+.L448:
 @ 	 token := VARIABLE
 	mov r0, #2
 	set r1, _token
 	str r0, [r1]
-	b .L430
-.L429:
+	b .L450
+.L449:
 @ 	 token := IDENT
 	mov r0, #1
 	set r1, _token
 	str r0, [r1]
-.L430:
+.L450:
 @       i := 0;
 	mov r6, #0
-.L433:
+.L453:
 @       while ((((ch >= 'A') and (ch <= 'Z')) or (ch = '_')) or ((ch >= 'a') and (ch <= 'z'))) or ((ch >= '0') and (ch <= '9')) do
 	cmp r4, #65
-	blt .L443
+	blt .L463
 	cmp r4, #90
-	ble .L434
-.L443:
+	ble .L454
+.L463:
 	cmp r4, #95
-	beq .L434
+	beq .L454
 	cmp r4, #97
-	blt .L439
+	blt .L459
 	cmp r4, #122
-	ble .L434
-.L439:
+	ble .L454
+.L459:
 	cmp r4, #48
-	blt .L435
+	blt .L455
 	cmp r4, #57
-	bgt .L435
-.L434:
+	bgt .L455
+.L454:
 @         if i > MAXSTRING then
 	cmp r6, #128
-	ble .L438
+	ble .L458
 @           newline(); print_string("Panic: "); print_string("identifier too long"); newline(); exit(2)
 	bl newline
 	mov r1, #7
@@ -3503,7 +3510,7 @@ _Scan:
 	bl newline
 	mov r0, #2
 	bl exit
-.L438:
+.L458:
 @         toksval[i] := ch; ch := GetChar(); i := i+1
 	set r0, _toksval
 	add r0, r0, r6
@@ -3511,8 +3518,8 @@ _Scan:
 	bl _GetChar
 	mov r4, r0
 	add r6, r6, #1
-	b .L433
-.L435:
+	b .L453
+.L455:
 @       PushBack(ch);
 	mov r0, r4
 	bl _PushBack
@@ -3529,17 +3536,17 @@ _Scan:
 	set r1, _notsym
 	ldr r1, [r1]
 	cmp r0, r1
-	bne .L354
+	bne .L374
 	mov r0, #13
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L364:
+	b .L374
+.L384:
 @     elsif ((ch >= '0') and (ch <= '9')) then
 	cmp r4, #48
-	blt .L367
+	blt .L387
 	cmp r4, #57
-	bgt .L367
+	bgt .L387
 @       token := NUMBER; tokival := 0;
 	mov r0, #3
 	set r1, _token
@@ -3547,12 +3554,12 @@ _Scan:
 	mov r0, #0
 	set r1, _tokival
 	str r0, [r1]
-.L423:
+.L443:
 @       while ((ch >= '0') and (ch <= '9')) do
 	cmp r4, #48
-	blt .L425
+	blt .L445
 	cmp r4, #57
-	bgt .L425
+	bgt .L445
 @         tokival := 10 * tokival + (ord(ch) - ord('0'));
 	set r7, _tokival
 	ldr r0, [r7]
@@ -3564,97 +3571,97 @@ _Scan:
 @         ch := GetChar()
 	bl _GetChar
 	mov r4, r0
-	b .L423
-.L425:
+	b .L443
+.L445:
 @       PushBack(ch)
 	mov r0, r4
 	bl _PushBack
-	b .L354
-.L367:
+	b .L374
+.L387:
 @       case ch of
 	sub r0, r4, #33
 	cmp r0, #30
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L369
-	.word .L379
-	.word .L383
-	.word .L378
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L382
-	.word .L371
-	.word .L372
-	.word .L369
-	.word .L369
-	.word .L373
-	.word .L369
-	.word .L374
-	.word .L380
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L369
-	.word .L381
-	.word .L369
-	.word .L376
-	.word .L375
-	.word .L377
-.L371:
+	b .L389
+	.word .L399
+	.word .L403
+	.word .L398
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L402
+	.word .L391
+	.word .L392
+	.word .L389
+	.word .L389
+	.word .L393
+	.word .L389
+	.word .L394
+	.word .L400
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L389
+	.word .L401
+	.word .L389
+	.word .L396
+	.word .L395
+	.word .L397
+.L391:
 @         '(': token := LPAR
 	mov r0, #7
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L372:
+	b .L374
+.L392:
 @       | ')': token := RPAR
 	mov r0, #8
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L373:
+	b .L374
+.L393:
 @       | ',': token := COMMA
 	mov r0, #9
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L374:
+	b .L374
+.L394:
 @       | '.': token := DOT
 	mov r0, #10
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L375:
+	b .L374
+.L395:
 @       | '=': token := EQUAL
 	mov r0, #12
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L376:
+	b .L374
+.L396:
 @       | '<': token := LANGLE
 	mov r0, #15
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L377:
+	b .L374
+.L397:
 @       | '>': token := RANGLE
 	mov r0, #16
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L378:
+	b .L374
+.L398:
 @       | '#': token := HASH
 	mov r0, #17
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L379:
+	b .L374
+.L399:
 @       | '!': token := IDENT; tokval := cutsym
 	mov r0, #1
 	set r1, _token
@@ -3663,87 +3670,87 @@ _Scan:
 	ldr r0, [r0]
 	set r1, _tokval
 	str r0, [r1]
-	b .L354
-.L380:
+	b .L374
+.L400:
 @ 	  ch := GetChar();
 	bl _GetChar
 	mov r4, r0
 @ 	  if ch <> '*' then
 	cmp r4, #42
-	beq .L388
+	beq .L408
 @ 	    if not errflag then ShowError(); print_string("bad token /"); newline(); Recover() end
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L354
+	bne .L374
 	bl _ShowError
 	mov r1, #11
 	set r0, g44
 	bl print_string
 	bl newline
 	bl _Recover
-	b .L354
-.L388:
+	b .L374
+.L408:
 @ 	    ch2 := ' '; ch := GetChar();
 	mov r5, #32
 	bl _GetChar
 	mov r4, r0
-.L390:
+.L410:
 @ 	    while (ch <> ENDFILE) and not ((ch2 = '*') and (ch = '/')) do
 	cmp r4, #127
-	beq .L392
+	beq .L412
 	cmp r5, #42
-	bne .L391
+	bne .L411
 	cmp r4, #47
-	beq .L392
-.L391:
+	beq .L412
+.L411:
 @ 	      ch2 := ch; ch := GetChar() 
 	mov r5, r4
 	bl _GetChar
 	mov r4, r0
-	b .L390
-.L392:
+	b .L410
+.L412:
 @ 	    if ch = ENDFILE then
 	cmp r4, #127
-	bne .L396
+	bne .L416
 @ 	      if not errflag then ShowError(); print_string("end of file in comment"); newline(); Recover() end
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L354
+	bne .L374
 	bl _ShowError
 	mov r1, #22
 	set r0, g45
 	bl print_string
 	bl newline
 	bl _Recover
-	b .L354
-.L396:
+	b .L374
+.L416:
 @ 	      ch := GetChar()
 	bl _GetChar
 	mov r4, r0
-	b .L354
-.L381:
+	b .L374
+.L401:
 @ 	  ch := GetChar();
 	bl _GetChar
 	mov r4, r0
 @ 	  if ch = '-' then
 	cmp r4, #45
-	bne .L405
+	bne .L425
 @ 	    token := ARROW
 	mov r0, #6
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L405:
+	b .L374
+.L425:
 @ 	    PushBack(ch); token := COLON 
 	mov r0, r4
 	bl _PushBack
 	mov r0, #11
 	set r1, _token
 	str r0, [r1]
-	b .L354
-.L382:
+	b .L374
+.L402:
 @ 	  token := CHCON; tokival := ord(GetChar()); ch := GetChar();
 	mov r0, #4
 	set r1, _token
@@ -3755,19 +3762,19 @@ _Scan:
 	mov r4, r0
 @ 	  if ch <> '''' then if not errflag then ShowError(); print_string("missing quote"); newline(); Recover() end end
 	cmp r4, #39
-	beq .L354
+	beq .L374
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L354
+	bne .L374
 	bl _ShowError
 	mov r1, #13
 	set r0, g46
 	bl print_string
 	bl newline
 	bl _Recover
-	b .L354
-.L383:
+	b .L374
+.L403:
 @ 	  token := STRCON; i := 0; ch := GetChar();
 	mov r0, #5
 	set r1, _token
@@ -3775,12 +3782,12 @@ _Scan:
 	mov r6, #0
 	bl _GetChar
 	mov r4, r0
-.L413:
+.L433:
 @ 	  while (ch <> '"') and (ch <> ENDLINE) do
 	cmp r4, #34
-	beq .L415
+	beq .L435
 	cmp r4, #10
-	beq .L415
+	beq .L435
 @ 	    toksval[i] := ch; ch := GetChar(); i := i+1 
 	set r0, _toksval
 	add r0, r0, r6
@@ -3788,8 +3795,8 @@ _Scan:
 	bl _GetChar
 	mov r4, r0
 	add r6, r6, #1
-	b .L413
-.L415:
+	b .L433
+.L435:
 @ 	  toksval[i] := ENDSTR;
 	mov r0, #0
 	set r1, _toksval
@@ -3797,41 +3804,41 @@ _Scan:
 	strb r0, [r1]
 @ 	  if ch = ENDLINE then
 	cmp r4, #10
-	bne .L354
+	bne .L374
 @ 	    if not errflag then ShowError(); print_string("unterminated string"); newline(); Recover() end;
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L422
+	bne .L442
 	bl _ShowError
 	mov r1, #19
 	set r0, g47
 	bl print_string
 	bl newline
 	bl _Recover
-.L422:
+.L442:
 @ 	    PushBack(ch)
 	mov r0, r4
 	bl _PushBack
-	b .L354
-.L369:
+	b .L374
+.L389:
 @ 	if not errflag then ShowError(); print_string("illegal character"); newline(); Recover() end; print_char(ch); newline()
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L386
+	bne .L406
 	bl _ShowError
 	mov r1, #17
 	set r0, g48
 	bl print_string
 	bl newline
 	bl _Recover
-.L386:
+.L406:
 	mov r0, r4
 	bl print_char
 	bl newline
-	b .L354
-.L353:
+	b .L374
+.L373:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3846,25 +3853,25 @@ _PrintToken:
 	sub r0, r0, #1
 	cmp r0, #17
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L455
-	.word .L457
-	.word .L458
-	.word .L459
-	.word .L460
-	.word .L468
-	.word .L461
-	.word .L462
-	.word .L463
-	.word .L464
-	.word .L465
-	.word .L466
-	.word .L467
-	.word .L455
-	.word .L455
-	.word .L469
-	.word .L470
-	.word .L471
-.L457:
+	b .L475
+	.word .L477
+	.word .L478
+	.word .L479
+	.word .L480
+	.word .L488
+	.word .L481
+	.word .L482
+	.word .L483
+	.word .L484
+	.word .L485
+	.word .L486
+	.word .L487
+	.word .L475
+	.word .L475
+	.word .L489
+	.word .L490
+	.word .L491
+.L477:
 @       print_string("identifier "); WriteString(symtab[tokval].name)
 	mov r1, #11
 	set r0, g49
@@ -3876,8 +3883,8 @@ _PrintToken:
 	add r0, r0, r1
 	ldr r0, [r0]
 	bl _WriteString
-	b .L454
-.L458:
+	b .L474
+.L478:
 @       print_string("variable "); WriteString(symtab[tokval].name)
 	mov r1, #9
 	set r0, g50
@@ -3889,91 +3896,91 @@ _PrintToken:
 	add r0, r0, r1
 	ldr r0, [r0]
 	bl _WriteString
-	b .L454
-.L459:
+	b .L474
+.L479:
 @   | NUMBER: print_string("number");
 	mov r1, #6
 	set r0, g51
 	bl print_string
-	b .L454
-.L460:
+	b .L474
+.L480:
 @   | CHCON:  print_string("char constant");
 	mov r1, #13
 	set r0, g52
 	bl print_string
-	b .L454
-.L461:
+	b .L474
+.L481:
 @   | ARROW:  print_string(":-");
 	mov r1, #2
 	set r0, g53
 	bl print_string
-	b .L454
-.L462:
+	b .L474
+.L482:
 @   | LPAR:   print_string("(");
 	mov r1, #1
 	set r0, g54
 	bl print_string
-	b .L454
-.L463:
+	b .L474
+.L483:
 @   | RPAR:   print_string(")");
 	mov r1, #1
 	set r0, g55
 	bl print_string
-	b .L454
-.L464:
+	b .L474
+.L484:
 @   | COMMA:  print_string(",");
 	mov r1, #1
 	set r0, g56
 	bl print_string
-	b .L454
-.L465:
+	b .L474
+.L485:
 @   | DOT:    print_string(".");
 	mov r1, #1
 	set r0, g57
 	bl print_string
-	b .L454
-.L466:
+	b .L474
+.L486:
 @   | COLON:  print_string(":");
 	mov r1, #1
 	set r0, g58
 	bl print_string
-	b .L454
-.L467:
+	b .L474
+.L487:
 @   | EQUAL:  print_string("=");
 	mov r1, #1
 	set r0, g59
 	bl print_string
-	b .L454
-.L468:
+	b .L474
+.L488:
 @   | STRCON: print_string("string constant")
 	mov r1, #15
 	set r0, g60
 	bl print_string
-	b .L454
-.L469:
+	b .L474
+.L489:
 @   | LANGLE: print_string("<")
 	mov r1, #1
 	set r0, g61
 	bl print_string
-	b .L454
-.L470:
+	b .L474
+.L490:
 @   | RANGLE: print_string(">")
 	mov r1, #1
 	set r0, g62
 	bl print_string
-	b .L454
-.L471:
+	b .L474
+.L491:
 @   | HASH:   print_string("#")
 	mov r1, #1
 	set r0, g63
 	bl print_string
-	b .L454
-.L455:
+	b .L474
+.L475:
 @     print_string("unknown token")
 	mov r1, #13
 	set r0, g64
 	bl print_string
-.L454:
+.L474:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -3987,7 +3994,7 @@ _VarRep:
 	set r0, _nvars
 	ldr r0, [r0]
 	cmp r0, #63
-	bne .L475
+	bne .L495
 	bl newline
 	mov r1, #7
 	set r0, g65
@@ -3998,7 +4005,7 @@ _VarRep:
 	bl newline
 	mov r0, #2
 	bl exit
-.L475:
+.L495:
 @   i := 1; vartable[nvars+1] := name;  (* sentinel *)
 	mov r4, #1
 	ldr r0, [fp, #40]
@@ -4008,7 +4015,7 @@ _VarRep:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-.L476:
+.L496:
 @   while name <> vartable[i] do i := i+1 end;
 	ldr r0, [fp, #40]
 	set r1, _vartable
@@ -4016,18 +4023,18 @@ _VarRep:
 	add r1, r1, r2
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L478
+	beq .L498
 	add r4, r4, #1
-	b .L476
-.L478:
+	b .L496
+.L498:
 @   if i = nvars+1 then nvars := nvars+1 end;
 	set r5, _nvars
 	ldr r0, [r5]
 	add r6, r0, #1
 	cmp r4, r6
-	bne .L481
+	bne .L501
 	str r6, [r5]
-.L481:
+.L501:
 @   return MakeRef(i)
 	mov r0, r4
 	bl _MakeRef
@@ -4045,23 +4052,24 @@ _ShowAnswer:
 	set r0, _nvars
 	ldr r0, [r0]
 	cmp r0, #0
-	bne .L484
+	bne .L504
 @     print_string("yes"); newline()
 	mov r1, #3
 	set r0, g67
 	bl print_string
 	bl newline
-	b .L482
-.L484:
+	b .L502
+.L504:
 @     for i := 1 to nvars do
 	mov r4, #1
+	b .L509
+.L506:
+	add r4, r4, #1
+.L509:
 	set r0, _nvars
 	ldr r0, [r0]
-	str r0, [fp, #-4]
-.L486:
-	ldr r0, [fp, #-4]
 	cmp r4, r0
-	bgt .L482
+	bgt .L502
 @       WriteString(symtab[vartable[i]].name); print_string(" = ");
 	set r0, _symtab
 	set r1, _vartable
@@ -4086,9 +4094,8 @@ _ShowAnswer:
 	bl _PrintTerm
 @       newline()
 	bl newline
-	add r4, r4, #1
-	b .L486
-.L482:
+	b .L506
+.L502:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4103,18 +4110,18 @@ _Eat:
 	ldr r4, [r0]
 	ldr r0, [fp, #40]
 	cmp r4, r0
-	bne .L490
+	bne .L514
 @     if token <> DOT then Scan() end
 	cmp r4, #10
-	beq .L488
+	beq .L512
 	bl _Scan
-	b .L488
-.L490:
+	b .L512
+.L514:
 @   elsif not errflag then
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L488
+	bne .L512
 @     ShowError();
 	bl _ShowError
 @     print_string("expected "); PrintToken(expected);
@@ -4133,7 +4140,7 @@ _Eat:
 	bl newline
 @     Recover()
 	bl _Recover
-.L488:
+.L512:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4153,19 +4160,19 @@ _ParseCompound:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #7
-	bne .L501
+	bne .L525
 @     Eat(LPAR); n := 1; arg[1] := ParseTerm();
 	mov r0, #7
 	bl _Eat
 	mov r5, #1
 	bl _ParseTerm
 	str r0, [fp, #-252]
-.L502:
+.L526:
 @     while token = COMMA do
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #9
-	bne .L504
+	bne .L528
 @       Eat(COMMA); n := n+1; arg[n] := ParseTerm()
 	mov r0, #9
 	bl _Eat
@@ -4175,12 +4182,12 @@ _ParseCompound:
 	lsl r2, r5, #2
 	add r1, r1, r2
 	str r0, [r1]
-	b .L502
-.L504:
+	b .L526
+.L528:
 @     Eat(RPAR)
 	mov r0, #8
 	bl _Eat
-.L501:
+.L525:
 @   if symtab[fun].arity = -1 then
 	set r0, _symtab
 	lsl r1, r4, #4
@@ -4189,30 +4196,30 @@ _ParseCompound:
 	ldr r0, [r6]
 	mov r1, #-1
 	cmp r0, r1
-	bne .L506
+	bne .L530
 @     symtab[fun].arity := n
 	str r5, [r6]
-	b .L507
-.L506:
+	b .L531
+.L530:
 @   elsif symtab[fun].arity <> n then
 	set r0, _symtab
 	lsl r1, r4, #4
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	cmp r0, r5
-	beq .L507
+	beq .L531
 @     if not errflag then ShowError(); print_string("wrong number of args"); newline(); Recover() end
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L507
+	bne .L531
 	bl _ShowError
 	mov r1, #20
 	set r0, g71
 	bl print_string
 	bl newline
 	bl _Recover
-.L507:
+.L531:
 @   return MakeCompound(fun, arg)
 	add r1, fp, #-256
 	mov r0, r4
@@ -4229,16 +4236,16 @@ _ParsePrimary:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #1
-	bne .L516
+	bne .L540
 	bl _ParseCompound
 	mov r4, r0
-	b .L517
-.L516:
+	b .L541
+.L540:
 @   elsif token = VARIABLE then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #2
-	bne .L519
+	bne .L543
 @     t := VarRep(tokval); Eat(VARIABLE)
 	set r0, _tokval
 	ldr r0, [r0]
@@ -4246,13 +4253,13 @@ _ParsePrimary:
 	mov r4, r0
 	mov r0, #2
 	bl _Eat
-	b .L517
-.L519:
+	b .L541
+.L543:
 @   elsif token = NUMBER then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #3
-	bne .L522
+	bne .L546
 @     t := MakeInt(tokival); Eat(NUMBER)
 	set r0, _tokival
 	ldr r0, [r0]
@@ -4260,13 +4267,13 @@ _ParsePrimary:
 	mov r4, r0
 	mov r0, #3
 	bl _Eat
-	b .L517
-.L522:
+	b .L541
+.L546:
 @   elsif token = CHCON then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #4
-	bne .L525
+	bne .L549
 @     t := MakeChar(chr(tokival)); Eat(CHCON)
 	set r0, _tokival
 	ldr r0, [r0]
@@ -4274,26 +4281,26 @@ _ParsePrimary:
 	mov r4, r0
 	mov r0, #4
 	bl _Eat
-	b .L517
-.L525:
+	b .L541
+.L549:
 @   elsif token = STRCON then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #5
-	bne .L528
+	bne .L552
 @     t := MakeString(toksval); Eat(STRCON)
 	set r0, _toksval
 	bl _MakeString
 	mov r4, r0
 	mov r0, #5
 	bl _Eat
-	b .L517
-.L528:
+	b .L541
+.L552:
 @   elsif token = LPAR then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #7
-	bne .L531
+	bne .L555
 @     Eat(LPAR); t := ParseTerm(); Eat(RPAR)
 	mov r0, #7
 	bl _Eat
@@ -4301,32 +4308,32 @@ _ParsePrimary:
 	mov r4, r0
 	mov r0, #8
 	bl _Eat
-	b .L517
-.L531:
+	b .L541
+.L555:
 @   elsif token = LANGLE then
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #15
-	bne .L534
+	bne .L558
 @     t := ParseNode()
 	bl _ParseNode
 	mov r4, r0
-	b .L517
-.L534:
+	b .L541
+.L558:
 @     if not errflag then ShowError(); print_string("expected a term"); newline(); Recover() end; t := NULL
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L538
+	bne .L562
 	bl _ShowError
 	mov r1, #15
 	set r0, g72
 	bl print_string
 	bl newline
 	bl _Recover
-.L538:
+.L562:
 	mov r4, #0
-.L517:
+.L541:
 @   return t
 	mov r0, r4
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -4367,15 +4374,15 @@ _ParseKids:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #9
-	beq .L542
+	beq .L566
 @     return MakeNode(nilsym, NULL, NULL)
 	mov r2, #0
 	mov r1, #0
 	set r0, _nilsym
 	ldr r0, [r0]
 	bl _MakeNode
-	b .L540
-.L542:
+	b .L564
+.L566:
 @     Eat(COMMA);
 	mov r0, #9
 	bl _Eat
@@ -4391,7 +4398,7 @@ _ParseKids:
 	set r0, _cons
 	ldr r0, [r0]
 	bl _MakeNode
-.L540:
+.L564:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4407,11 +4414,11 @@ _ParseFactor:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #11
-	beq .L546
+	beq .L570
 @     return t
 	mov r0, r4
-	b .L544
-.L546:
+	b .L568
+.L570:
 @     Eat(COLON);
 	mov r0, #11
 	bl _Eat
@@ -4422,7 +4429,7 @@ _ParseFactor:
 	set r0, _cons
 	ldr r0, [r0]
 	bl _MakeNode
-.L544:
+.L568:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4438,11 +4445,11 @@ _ParseTerm:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #12
-	beq .L550
+	beq .L574
 @     return t
 	mov r0, r4
-	b .L548
-.L550:
+	b .L572
+.L574:
 @     Eat(EQUAL);
 	mov r0, #12
 	bl _Eat
@@ -4453,7 +4460,7 @@ _ParseTerm:
 	set r0, _eqsym
 	ldr r0, [r0]
 	bl _MakeNode
-.L548:
+.L572:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4471,19 +4478,19 @@ _CheckAtom:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #1
-	beq .L552
+	beq .L576
 @     if not errflag then ShowError(); print_string("literal must be a compound term"); newline(); Recover() end
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L552
+	bne .L576
 	bl _ShowError
 	mov r1, #31
 	set r0, g73
 	bl print_string
 	bl newline
 	bl _Recover
-.L552:
+.L576:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4497,20 +4504,20 @@ _ParseClause:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #17
-	bne .L561
+	bne .L585
 @     Eat(HASH); head := NULL
 	mov r0, #17
 	bl _Eat
 	mov r4, #0
-	b .L562
-.L561:
+	b .L586
+.L585:
 @     head := ParseTerm();
 	bl _ParseTerm
 	mov r4, r0
 @     CheckAtom(head)
 	mov r0, r4
 	bl _CheckAtom
-.L562:
+.L586:
 @   Eat(ARROW);
 	mov r0, #6
 	bl _Eat
@@ -4520,15 +4527,15 @@ _ParseClause:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #10
-	beq .L565
+	beq .L589
 @     more := true;
 	mov r0, #1
 	strb r0, [fp, #-258]
-.L566:
+.L590:
 @     while more do
 	ldrb r0, [fp, #-258]
 	cmp r0, #0
-	beq .L565
+	beq .L589
 @       n := n+1; minus := false;
 	add r6, r6, #1
 	mov r0, #0
@@ -4537,13 +4544,13 @@ _ParseClause:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #13
-	bne .L571
+	bne .L595
 @ 	Eat(NEGATE); minus := true 
 	mov r0, #13
 	bl _Eat
 	mov r0, #1
 	strb r0, [fp, #-257]
-.L571:
+.L595:
 @       t := ParseTerm(); CheckAtom(t);
 	bl _ParseTerm
 	mov r5, r0
@@ -4552,7 +4559,7 @@ _ParseClause:
 @       if minus then 
 	ldrb r0, [fp, #-257]
 	cmp r0, #0
-	beq .L573
+	beq .L597
 @ 	body[n] := MakeNode(notsym, t, NULL)
 	mov r2, #0
 	mov r1, r5
@@ -4563,27 +4570,27 @@ _ParseClause:
 	lsl r2, r6, #2
 	add r1, r1, r2
 	str r0, [r1]
-	b .L574
-.L573:
+	b .L598
+.L597:
 @         body[n] := t
 	add r0, fp, #-256
 	lsl r1, r6, #2
 	add r0, r0, r1
 	str r5, [r0]
-.L574:
+.L598:
 @       if token = COMMA then Eat(COMMA) else more := false end
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #9
-	bne .L576
+	bne .L600
 	mov r0, #9
 	bl _Eat
-	b .L566
-.L576:
+	b .L590
+.L600:
 	mov r0, #0
 	strb r0, [fp, #-258]
-	b .L566
-.L565:
+	b .L590
+.L589:
 @   Eat(DOT);
 	mov r0, #10
 	bl _Eat
@@ -4591,11 +4598,11 @@ _ParseClause:
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L579
+	beq .L603
 @     return NULL
 	mov r0, #0
-	b .L559
-.L579:
+	b .L583
+.L603:
 @     return MakeClause(nvars, head, body, n)
 	mov r3, r6
 	add r2, fp, #-256
@@ -4603,7 +4610,7 @@ _ParseClause:
 	set r0, _nvars
 	ldr r0, [r0]
 	bl _MakeClause
-.L559:
+.L583:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4612,7 +4619,7 @@ _ReadClause:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
-.L582:
+.L606:
 @     hp := hmark; nvars := 0; errflag := false;
 	set r0, _hmark
 	ldr r0, [r0]
@@ -4630,24 +4637,24 @@ _ReadClause:
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #14
-	bne .L586
+	bne .L610
 @       c := NULL
 	mov r4, #0
-	b .L587
-.L586:
+	b .L611
+.L610:
 @       c := ParseClause()
 	bl _ParseClause
 	mov r4, r0
-.L587:
+.L611:
 	set r0, _errflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L583
+	beq .L607
 	set r0, _token
 	ldr r0, [r0]
 	cmp r0, #14
-	bne .L582
-.L583:
+	bne .L606
+.L607:
 @   return c
 	mov r0, r4
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -4664,14 +4671,14 @@ _Save:
 	set r0, _choice
 	ldr r6, [r0]
 	cmp r5, r6
-	blt .L589
+	blt .L613
 	set r0, _mem
 	lsl r1, r6, #2
 	add r0, r0, r1
 	ldr r0, [r0, #16]
 	cmp r5, r0
-	blt .L588
-.L589:
+	blt .L612
+.L613:
 @     p := GloAlloc(UNDO, TRAIL_SIZE);
 	mov r1, #3
 	mov r0, #6
@@ -4687,7 +4694,7 @@ _Save:
 	ldr r0, [r6]
 	str r0, [r5, #8]
 	str r4, [r6]
-.L588:
+.L612:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4696,7 +4703,7 @@ _Restore:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
-.L594:
+.L618:
 @   while (trhead <> mem[choice+5]) do
 	set r0, _trhead
 	ldr r5, [r0]
@@ -4707,19 +4714,19 @@ _Restore:
 	add r0, r6, r0
 	ldr r0, [r0, #20]
 	cmp r5, r0
-	beq .L593
+	beq .L617
 @     v := mem[trhead+1];
 	lsl r0, r5, #2
 	add r0, r6, r0
 	ldr r4, [r0, #4]
 @     if v <> NULL then mem[v+1] := NULL end;
 	cmp r4, #0
-	beq .L599
+	beq .L623
 	mov r0, #0
 	lsl r1, r4, #2
 	add r1, r6, r1
 	str r0, [r1, #4]
-.L599:
+.L623:
 @     trhead := mem[trhead+2]
 	set r5, _trhead
 	set r0, _mem
@@ -4728,8 +4735,8 @@ _Restore:
 	add r0, r0, r1
 	ldr r0, [r0, #8]
 	str r0, [r5]
-	b .L594
-.L593:
+	b .L618
+.L617:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4741,10 +4748,10 @@ _Commit:
 @   p := trhead;
 	set r0, _trhead
 	ldr r4, [r0]
-.L601:
+.L625:
 @   while (p <> NULL) and (p < mem[choice+4]) do
 	cmp r4, #0
-	beq .L600
+	beq .L624
 	set r5, _mem
 	set r0, _choice
 	ldr r6, [r0]
@@ -4752,29 +4759,29 @@ _Commit:
 	add r0, r5, r0
 	ldr r7, [r0, #16]
 	cmp r4, r7
-	bge .L600
+	bge .L624
 @     if (mem[p+1] <> NULL) and not ((mem[p+1] < choice) or (mem[p+1] >= mem[choice+4])) then
 	lsl r0, r4, #2
 	add r0, r5, r0
 	add r5, r0, #4
 	ldr r8, [r5]
 	cmp r8, #0
-	beq .L606
+	beq .L630
 	cmp r8, r6
-	blt .L606
+	blt .L630
 	cmp r8, r7
-	bge .L606
+	bge .L630
 @       mem[p+1] := NULL
 	mov r0, #0
 	str r0, [r5]
-.L606:
+.L630:
 @     p := mem[p+2]
 	set r0, _mem
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r4, [r0, #8]
-	b .L601
-.L600:
+	b .L625
+.L624:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4794,10 +4801,10 @@ _GloCopy:
 	set r1, _gsp
 	ldr r1, [r1]
 	cmp r0, r1
-	blt .L612
+	blt .L636
 @     return t
-	b .L610
-.L612:
+	b .L634
+.L636:
 @     case lsr(mem[t], 8) of
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -4808,12 +4815,12 @@ _GloCopy:
 	sub r0, r0, #1
 	cmp r0, #4
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L614
-	.word .L616
-	.word .L614
-	.word .L614
-	.word .L617
-.L616:
+	b .L638
+	.word .L640
+	.word .L638
+	.word .L638
+	.word .L641
+.L640:
 @ 	n := symtab[mem[t+1]].arity;
 	ldr r7, [fp, #40]
 	set r0, _symtab
@@ -4828,13 +4835,13 @@ _GloCopy:
 	set r0, _hp
 	ldr r0, [r0]
 	cmp r7, r0
-	bgt .L619
+	bgt .L643
 	cmp r6, #0
-	bne .L619
+	bne .L643
 @ 	  return t
 	mov r0, r7
-	b .L610
-.L619:
+	b .L634
+.L643:
 @ 	  tt := GloAlloc(FUNC, TERM_SIZE+n);
 	add r1, r6, #2
 	mov r0, #1
@@ -4851,11 +4858,12 @@ _GloCopy:
 	str r0, [r1, #4]
 @ 	  for i := 1 to n do
 	mov r5, #1
-	str r6, [fp, #-4]
-.L621:
-	ldr r0, [fp, #-4]
-	cmp r5, r0
-	bgt .L622
+	b .L648
+.L645:
+	add r5, r5, #1
+.L648:
+	cmp r5, r6
+	bgt .L647
 @ 	    mem[tt+i+1] := GloCopy(mem[t+i+1], e)
 	ldr r1, [fp, #44]
 	set r0, _mem
@@ -4870,13 +4878,12 @@ _GloCopy:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-	add r5, r5, #1
-	b .L621
-.L622:
+	b .L645
+.L647:
 @ 	  return tt
 	mov r0, r4
-	b .L610
-.L617:
+	b .L634
+.L641:
 @         tt := GloAlloc(CELL, TERM_SIZE);
 	mov r1, #2
 	mov r0, #4
@@ -4898,11 +4905,11 @@ _GloCopy:
 	str r4, [r0, #4]
 @         return tt
 	mov r0, r4
-	b .L610
-.L614:
+	b .L634
+.L638:
 @       return t
 	ldr r0, [fp, #40]
-.L610:
+.L634:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4930,7 +4937,7 @@ _Share:
 	sub r1, r1, #1
 	mul r1, r6, r1
 	cmp r0, r1
-	bgt .L626
+	bgt .L654
 @     Save(v1); mem[v1+1] := v2
 	mov r0, r4
 	bl _Save
@@ -4940,8 +4947,8 @@ _Share:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-	b .L624
-.L626:
+	b .L652
+.L654:
 @     Save(v2); mem[v2+1] := v1 
 	ldr r0, [fp, #44]
 	bl _Save
@@ -4951,7 +4958,7 @@ _Share:
 	lsl r2, r2, #2
 	add r1, r1, r2
 	str r0, [r1, #4]
-.L624:
+.L652:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -4973,11 +4980,11 @@ _Unify:
 @   if t1 = t2 then  (* Includes unifying a var with itself *)
 	ldr r1, [fp, #40]
 	cmp r1, r0
-	bne .L630
+	bne .L658
 @     return true
 	mov r0, #1
-	b .L628
-.L630:
+	b .L656
+.L658:
 @   elsif (lsr(mem[t1], 8) = CELL) and (lsr(mem[t2], 8) = CELL) then
 	set r6, _mem
 	ldr r7, [fp, #40]
@@ -4986,21 +4993,21 @@ _Unify:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #4
-	bne .L633
+	bne .L661
 	ldr r8, [fp, #48]
 	lsl r0, r8, #2
 	add r0, r6, r0
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #4
-	bne .L633
+	bne .L661
 @     Share(t1, t2); return true
 	mov r1, r8
 	mov r0, r7
 	bl _Share
 	mov r0, #1
-	b .L628
-.L633:
+	b .L656
+.L661:
 @   elsif lsr(mem[t1], 8) = CELL then
 	ldr r6, [fp, #40]
 	set r0, _mem
@@ -5009,7 +5016,7 @@ _Unify:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #4
-	bne .L636
+	bne .L664
 @     Save(t1); mem[t1+1] := GloCopy(t2, e2); return true
 	mov r0, r6
 	bl _Save
@@ -5022,8 +5029,8 @@ _Unify:
 	add r1, r1, r2
 	str r0, [r1, #4]
 	mov r0, #1
-	b .L628
-.L636:
+	b .L656
+.L664:
 @   elsif lsr(mem[t2], 8) = CELL then
 	ldr r6, [fp, #48]
 	set r0, _mem
@@ -5032,7 +5039,7 @@ _Unify:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #4
-	bne .L639
+	bne .L667
 @     Save(t2); mem[t2+1] := GloCopy(t1, e1); return true
 	mov r0, r6
 	bl _Save
@@ -5045,8 +5052,8 @@ _Unify:
 	add r1, r1, r2
 	str r0, [r1, #4]
 	mov r0, #1
-	b .L628
-.L639:
+	b .L656
+.L667:
 @   elsif lsr(mem[t1], 8) <> lsr(mem[t2], 8) then
 	set r6, _mem
 	ldr r0, [fp, #40]
@@ -5060,11 +5067,11 @@ _Unify:
 	ldr r1, [r1]
 	lsr r1, r1, #8
 	cmp r0, r1
-	beq .L642
+	beq .L670
 @     return false
 	mov r0, #0
-	b .L628
-.L642:
+	b .L656
+.L670:
 @     case lsr(mem[t1], 8) of
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -5075,11 +5082,11 @@ _Unify:
 	sub r0, r0, #1
 	cmp r0, #3
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L644
-	.word .L646
-	.word .L647
-	.word .L648
-.L646:
+	b .L672
+	.word .L674
+	.word .L675
+	.word .L676
+.L674:
 @         if (mem[t1+1] <> mem[t2+1]) then
 	set r6, _mem
 	ldr r0, [fp, #40]
@@ -5091,18 +5098,18 @@ _Unify:
 	add r1, r6, r1
 	ldr r1, [r1, #4]
 	cmp r0, r1
-	beq .L650
+	beq .L678
 @           return false
 	mov r0, #0
-	b .L628
-.L650:
+	b .L656
+.L678:
 @           i := 1; match := true;
 	mov r4, #1
 	mov r5, #1
-.L652:
+.L680:
 @           while match and (i <= symtab[mem[t1+1]].arity) do
 	cmp r5, #0
-	beq .L654
+	beq .L682
 	set r6, _mem
 	ldr r7, [fp, #40]
 	set r0, _symtab
@@ -5113,7 +5120,7 @@ _Unify:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	cmp r4, r0
-	bgt .L654
+	bgt .L682
 @             match := Unify(mem[t1+i+1], e1, mem[t2+i+1], e2);
 	ldr r3, [fp, #52]
 	ldr r0, [fp, #48]
@@ -5130,12 +5137,12 @@ _Unify:
 	mov r5, r0
 @             i := i+1
 	add r4, r4, #1
-	b .L652
-.L654:
+	b .L680
+.L682:
 @           return match
 	mov r0, r5
-	b .L628
-.L647:
+	b .L656
+.L675:
 @         return (mem[t1+1] = mem[t2+1])
 	set r6, _mem
 	ldr r0, [fp, #40]
@@ -5149,8 +5156,8 @@ _Unify:
 	cmp r0, r1
 	mov r0, #0
 	moveq r0, #1
-	b .L628
-.L648:
+	b .L656
+.L676:
 @         return (mem[t1+1] = mem[t2+1])
 	set r6, _mem
 	ldr r0, [fp, #40]
@@ -5164,8 +5171,8 @@ _Unify:
 	cmp r0, r1
 	mov r0, #0
 	moveq r0, #1
-	b .L628
-.L644:
+	b .L656
+.L672:
 @       newline(); print_string("Panic: "); print_string("bad tag" (*t_kind(t1):1, " in ", "Unify"*)); newline(); exit(2)
 	bl newline
 	mov r1, #7
@@ -5177,7 +5184,7 @@ _Unify:
 	bl newline
 	mov r0, #2
 	bl exit
-.L628:
+.L656:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5190,7 +5197,7 @@ _Key:
 @   if t = NULL then newline(); print_string("Panic: "); print_string("Key"); newline(); exit(2) end;
 	ldr r0, [fp, #40]
 	cmp r0, #0
-	bne .L660
+	bne .L688
 	bl newline
 	mov r1, #7
 	set r0, g76
@@ -5201,7 +5208,7 @@ _Key:
 	bl newline
 	mov r0, #2
 	bl exit
-.L660:
+.L688:
 @   if lsr(mem[t], 8) <> FUNC then newline(); print_string("Panic: "); print_string("bad tag" (*t_kind(t):1, " in ", "Key1"*)); newline(); exit(2) end;
 	set r0, _mem
 	ldr r1, [fp, #40]
@@ -5210,7 +5217,7 @@ _Key:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #1
-	beq .L663
+	beq .L691
 	bl newline
 	mov r1, #7
 	set r0, g78
@@ -5221,7 +5228,7 @@ _Key:
 	bl newline
 	mov r0, #2
 	bl exit
-.L663:
+.L691:
 @   if symtab[mem[t+1]].arity = 0 then
 	set r0, _symtab
 	set r1, _mem
@@ -5233,11 +5240,11 @@ _Key:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	cmp r0, #0
-	bne .L665
+	bne .L693
 @     return 0
 	mov r0, #0
-	b .L657
-.L665:
+	b .L685
+.L693:
 @     t0 := Deref(mem[t+1+1], e);
 	ldr r1, [fp, #44]
 	set r0, _mem
@@ -5256,37 +5263,37 @@ _Key:
 	sub r0, r0, #1
 	cmp r0, #3
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L667
-	.word .L669
-	.word .L670
-	.word .L671
-.L669:
+	b .L695
+	.word .L697
+	.word .L698
+	.word .L699
+.L697:
 @         FUNC:      return mem[t0+1]
 	set r0, _mem
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r0, [r0, #4]
-	b .L657
-.L670:
+	b .L685
+.L698:
 @       | INT:       return mem[t0+1] + 1
 	set r0, _mem
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	add r0, r0, #1
-	b .L657
-.L671:
+	b .L685
+.L699:
 @       | CHRCTR:    return mem[t0+1] + 1
 	set r0, _mem
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	add r0, r0, #1
-	b .L657
-.L667:
+	b .L685
+.L695:
 @       return 0
 	mov r0, #0
-.L657:
+.L685:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5303,25 +5310,25 @@ _Search:
 	mov r4, r0
 @   if k <> 0 then
 	cmp r4, #0
-	beq .L675
-.L676:
+	beq .L703
+.L704:
 @     while (p <> NULL) and (mem[p+1] <> 0) and (mem[p+1] <> k) do
 	ldr r5, [fp, #48]
 	cmp r5, #0
-	beq .L675
+	beq .L703
 	set r0, _mem
 	lsl r1, r5, #2
 	add r5, r0, r1
 	ldr r6, [r5, #4]
 	cmp r6, #0
-	beq .L675
+	beq .L703
 	cmp r6, r4
-	beq .L675
+	beq .L703
 @       p := mem[p+2]
 	ldr r0, [r5, #8]
 	str r0, [fp, #48]
-	b .L676
-.L675:
+	b .L704
+.L703:
 @   return p
 	ldr r0, [fp, #48]
 	ldmfd fp, {r4-r10, fp, sp, pc}
@@ -5363,14 +5370,17 @@ _PushFrame:
 	ldr r0, [r0]
 	str r0, [r7, #20]
 @   mem[f+6] := nvars;
-	ldr r8, [fp, #40]
-	str r8, [r7, #24]
+	ldr r0, [fp, #40]
+	str r0, [r7, #24]
 @   for i := 1 to nvars do
 	mov r5, #1
-	mov r6, r8
-.L682:
-	cmp r5, r6
-	bgt .L683
+	b .L713
+.L710:
+	add r5, r5, #1
+.L713:
+	ldr r0, [fp, #40]
+	cmp r5, r0
+	bgt .L712
 @     mem[(f+7+(i-1)*TERM_SIZE)] := lsl(CELL, 8) + TERM_SIZE;
 	set r0, _mem
 	add r1, r4, #7
@@ -5384,21 +5394,20 @@ _PushFrame:
 @     mem[(f+7+(i-1)*TERM_SIZE)+1] := NULL
 	mov r0, #0
 	str r0, [r7, #4]
-	add r5, r5, #1
-	b .L682
-.L683:
+	b .L710
+.L712:
 @   goalframe := f;
 	set r0, _goalframe
 	str r4, [r0]
 @   if retry <> NULL then choice := goalframe end
 	ldr r0, [fp, #44]
 	cmp r0, #0
-	beq .L681
+	beq .L709
 	set r0, _goalframe
 	ldr r7, [r0]
 	set r0, _choice
 	str r7, [r0]
-.L681:
+.L709:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5412,12 +5421,12 @@ _TroStep:
 	set r0, _dflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L690
+	beq .L722
 	mov r1, #5
 	set r0, g80
 	bl print_string
 	bl newline
-.L690:
+.L722:
 @   oldsize := (FRAME_SIZE + (mem[goalframe+6])*TERM_SIZE); (* size of old frame *)
 	set r7, _mem
 	set r0, _goalframe
@@ -5446,12 +5455,15 @@ _TroStep:
 @   for i := 1 to oldsize do 
 	mov r0, #1
 	str r0, [fp, #-4]
-	str r5, [fp, #-8]
-.L691:
+	b .L726
+.L723:
+	ldr r0, [fp, #-4]
+	add r0, r0, #1
+	str r0, [fp, #-4]
+.L726:
 	ldr r7, [fp, #-4]
-	ldr r0, [fp, #-8]
-	cmp r7, r0
-	bgt .L692
+	cmp r7, r5
+	bgt .L725
 @     mem[temp+oldsize-i] := mem[goalframe+oldsize-i]
 	set r8, _mem
 	set r0, _goalframe
@@ -5466,106 +5478,100 @@ _TroStep:
 	lsl r1, r1, #2
 	add r1, r8, r1
 	str r0, [r1]
-	add r0, r7, #1
-	str r0, [fp, #-4]
-	b .L691
-.L692:
+	b .L723
+.L725:
 @   for i := 1 to mem[goalframe+6] do
 	mov r0, #1
 	str r0, [fp, #-4]
-	set r0, _mem
-	set r1, _goalframe
-	ldr r1, [r1]
-	lsl r1, r1, #2
-	add r0, r0, r1
-	ldr r0, [r0, #24]
-	str r0, [fp, #-12]
-.L693:
-	ldr r7, [fp, #-4]
-	ldr r0, [fp, #-12]
-	cmp r7, r0
-	bgt .L694
-@     if (lsr(mem[(temp+7+(i-1)*TERM_SIZE)], 8) = CELL)
-	set r0, _mem
-	add r1, r4, #7
-	lsl r2, r7, #1
-	sub r2, r2, #2
-	add r1, r1, r2
-	lsl r1, r1, #2
-	add r7, r0, r1
-	ldr r0, [r7]
-	lsr r0, r0, #8
-	cmp r0, #4
-	bne .L697
-	add r7, r7, #4
-	ldr r8, [r7]
-	cmp r8, #0
-	beq .L697
-	set r0, _goalframe
-	ldr r9, [r0]
-	cmp r9, r8
-	bgt .L697
-	add r0, r9, r5
-	cmp r8, r0
-	bge .L697
-@       mem[(temp+7+(i-1)*TERM_SIZE)+1] := mem[(temp+7+(i-1)*TERM_SIZE)+1] + newsize
-	add r0, r8, r6
-	str r0, [r7]
-.L697:
+	b .L738
+.L729:
 	ldr r0, [fp, #-4]
 	add r0, r0, #1
 	str r0, [fp, #-4]
-	b .L693
-.L694:
+.L738:
+	ldr r7, [fp, #-4]
+	set r8, _mem
+	set r0, _goalframe
+	ldr r9, [r0]
+	lsl r0, r9, #2
+	add r0, r8, r0
+	ldr r0, [r0, #24]
+	cmp r7, r0
+	bgt .L731
+@     if (lsr(mem[(temp+7+(i-1)*TERM_SIZE)], 8) = CELL)
+	add r0, r4, #7
+	lsl r1, r7, #1
+	sub r1, r1, #2
+	add r0, r0, r1
+	lsl r0, r0, #2
+	add r7, r8, r0
+	ldr r0, [r7]
+	lsr r0, r0, #8
+	cmp r0, #4
+	bne .L729
+	add r7, r7, #4
+	ldr r8, [r7]
+	cmp r8, #0
+	beq .L729
+	cmp r9, r8
+	bgt .L729
+	add r0, r9, r5
+	cmp r8, r0
+	bge .L729
+@       mem[(temp+7+(i-1)*TERM_SIZE)+1] := mem[(temp+7+(i-1)*TERM_SIZE)+1] + newsize
+	add r0, r8, r6
+	str r0, [r7]
+	b .L729
+.L731:
 @   mem[goalframe+6] := mem[prok];
 	set r7, _mem
-	set r8, _goalframe
 	set r0, _prok
 	ldr r0, [r0]
 	lsl r0, r0, #2
 	add r0, r7, r0
 	ldr r0, [r0]
-	ldr r1, [r8]
+	set r1, _goalframe
+	ldr r1, [r1]
 	lsl r1, r1, #2
 	add r1, r7, r1
 	str r0, [r1, #24]
 @   for i := 1 to mem[goalframe+6] do
 	mov r0, #1
 	str r0, [fp, #-4]
-	ldr r0, [r8]
-	lsl r0, r0, #2
-	add r0, r7, r0
-	ldr r0, [r0, #24]
-	str r0, [fp, #-16]
-.L701:
+	b .L744
+.L741:
+	ldr r0, [fp, #-4]
+	add r0, r0, #1
+	str r0, [fp, #-4]
+.L744:
 	ldr r7, [fp, #-4]
-	ldr r0, [fp, #-16]
-	cmp r7, r0
-	bgt .L702
-@     mem[(goalframe+7+(i-1)*TERM_SIZE)] := lsl(CELL, 8) + TERM_SIZE;
 	set r8, _mem
 	set r9, _goalframe
-	lsl r0, r7, #1
-	sub r0, r0, #2
+	ldr r0, [r9]
+	lsl r1, r0, #2
+	add r1, r8, r1
+	ldr r1, [r1, #24]
+	cmp r7, r1
+	bgt .L743
+@     mem[(goalframe+7+(i-1)*TERM_SIZE)] := lsl(CELL, 8) + TERM_SIZE;
+	lsl r1, r7, #1
+	sub r7, r1, #2
 	set r1, #1026
-	ldr r2, [r9]
-	add r2, r2, #7
-	add r2, r2, r0
-	lsl r2, r2, #2
-	add r2, r8, r2
-	str r1, [r2]
-@     mem[(goalframe+7+(i-1)*TERM_SIZE)+1] := NULL
-	mov r1, #0
-	ldr r2, [r9]
-	add r2, r2, #7
-	add r0, r2, r0
+	add r0, r0, #7
+	add r0, r0, r7
 	lsl r0, r0, #2
 	add r0, r8, r0
-	str r1, [r0, #4]
-	add r0, r7, #1
-	str r0, [fp, #-4]
-	b .L701
-.L702:
+	str r1, [r0]
+@     mem[(goalframe+7+(i-1)*TERM_SIZE)+1] := NULL
+	mov r0, #0
+	ldr r1, [r9]
+	add r1, r1, #7
+	add r1, r1, r7
+	lsl r1, r1, #2
+	add r1, r8, r1
+	str r0, [r1, #4]
+	b .L741
+.L743:
 @   ok := Unify(call, temp, mem[prok+3], goalframe);
 	set r0, _goalframe
 	ldr r3, [r0]
@@ -5611,25 +5617,25 @@ _Step:
 	add r0, r0, r1
 	ldr r5, [r0, #8]
 	cmp r5, #0
-	beq .L705
+	beq .L749
 @     ok := DoBuiltin(symtab[mem[call+1]].action)
 	mov r0, r5
 	bl _DoBuiltin
 	set r1, _ok
 	strb r0, [r1]
-	b .L706
-.L705:
+	b .L750
+.L749:
 @   elsif prok = NULL then
 	set r0, _prok
 	ldr r0, [r0]
 	cmp r0, #0
-	bne .L708
+	bne .L752
 @     ok := false
 	mov r0, #0
 	set r1, _ok
 	strb r0, [r1]
-	b .L706
-.L708:
+	b .L750
+.L752:
 @     retry := Search(call, goalframe, mem[prok+2]);
 	set r0, _mem
 	set r1, _prok
@@ -5651,23 +5657,23 @@ _Step:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	cmp r0, #0
-	bne .L711
+	bne .L755
 	set r0, _goalframe
 	ldr r5, [r0]
 	set r0, _choice
 	ldr r0, [r0]
 	cmp r0, r5
-	bge .L711
+	bge .L755
 	cmp r4, #0
-	bne .L711
+	bne .L755
 	set r0, _base
 	ldr r0, [r0]
 	cmp r5, r0
-	beq .L711
+	beq .L755
 @       TroStep()
 	bl _TroStep
-	b .L706
-.L711:
+	b .L750
+.L755:
 @       PushFrame(mem[prok], retry);
 	mov r1, r4
 	set r0, _mem
@@ -5701,7 +5707,7 @@ _Step:
 	add r0, r0, #4
 	set r1, _current
 	str r0, [r1]
-.L706:
+.L750:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5710,7 +5716,7 @@ _Unwind:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
-.L717:
+.L761:
 @   while (mem[current] = NULL) and (goalframe <> base) do
 	set r0, _mem
 	set r1, _current
@@ -5719,18 +5725,18 @@ _Unwind:
 	add r0, r0, r1
 	ldr r0, [r0]
 	cmp r0, #0
-	bne .L716
+	bne .L760
 	set r0, _goalframe
 	ldr r0, [r0]
 	set r1, _base
 	ldr r1, [r1]
 	cmp r0, r1
-	beq .L716
+	beq .L760
 @     if dflag then 
 	set r0, _dflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L722
+	beq .L766
 @     print_string("Exit"); print_string(": "); 
 	mov r1, #4
 	set r0, g81
@@ -5752,7 +5758,7 @@ _Unwind:
 	ldr r0, [r0]
 	bl _PrintTerm
 	bl newline
-.L722:
+.L766:
 @     current := (mem[goalframe])+1;
 	set r0, _goalframe
 	ldr r4, [r0]
@@ -5767,11 +5773,11 @@ _Unwind:
 	set r0, _choice
 	ldr r0, [r0]
 	cmp r4, r0
-	ble .L725
+	ble .L769
 	sub r0, r4, #1
 	set r1, _lsp
 	str r0, [r1]
-.L725:
+.L769:
 @     goalframe := mem[goalframe+1]
 	set r4, _goalframe
 	set r0, _mem
@@ -5780,8 +5786,8 @@ _Unwind:
 	add r0, r0, r1
 	ldr r0, [r0, #4]
 	str r0, [r4]
-	b .L717
-.L716:
+	b .L761
+.L760:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5834,7 +5840,7 @@ _Backtrack:
 	set r0, _dflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L730
+	beq .L774
 @     print_string("Redo"); print_string(": "); 
 	mov r1, #4
 	set r0, g83
@@ -5850,7 +5856,7 @@ _Backtrack:
 	ldr r0, [r0]
 	bl _PrintTerm
 	bl newline
-.L730:
+.L774:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -5859,17 +5865,17 @@ _Resume:
 	mov ip, sp
 	stmfd sp!, {r4-r10, fp, ip, lr}
 	mov fp, sp
-.L732:
+.L776:
 @   while run do
 	set r0, _run
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L731
+	beq .L775
 @     if ok then
 	set r0, _ok
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L736
+	beq .L780
 @       if mem[current] = NULL then return end;
 	set r0, _mem
 	set r1, _current
@@ -5878,7 +5884,7 @@ _Resume:
 	add r0, r0, r1
 	ldr r4, [r0]
 	cmp r4, #0
-	beq .L731
+	beq .L775
 @       call := Deref(mem[current], goalframe);
 	set r0, _goalframe
 	ldr r1, [r0]
@@ -5890,7 +5896,7 @@ _Resume:
 	set r0, _dflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L746
+	beq .L790
 @     print_string("Call"); print_string(": "); 
 	mov r1, #4
 	set r0, g85
@@ -5906,7 +5912,7 @@ _Resume:
 	ldr r0, [r0]
 	bl _PrintTerm
 	bl newline
-.L746:
+.L790:
 @       if (symtab[mem[call+1]].prok = NULL)
 	set r0, _symtab
 	set r1, _mem
@@ -5919,10 +5925,10 @@ _Resume:
 	add r4, r0, r1
 	ldr r0, [r4, #12]
 	cmp r0, #0
-	bne .L749
+	bne .L793
 	ldr r0, [r4, #8]
 	cmp r0, #0
-	bne .L749
+	bne .L793
 @ 	newline(); print_string("Error: "); print_string("call to undefined relation "); run := false;
 	bl newline
 	mov r1, #7
@@ -5946,8 +5952,8 @@ _Resume:
 	add r0, r0, r1
 	ldr r0, [r0]
 	bl _WriteString
-	b .L731
-.L749:
+	b .L775
+.L793:
 @       prok := Search(call, goalframe, symtab[mem[call+1]].prok)
 	set r0, _call
 	ldr r4, [r0]
@@ -5965,28 +5971,28 @@ _Resume:
 	bl _Search
 	set r1, _prok
 	str r0, [r1]
-	b .L737
-.L736:
+	b .L781
+.L780:
 @       if choice <= base then return end;
 	set r0, _choice
 	ldr r0, [r0]
 	set r1, _base
 	ldr r1, [r1]
 	cmp r0, r1
-	ble .L731
+	ble .L775
 @       Backtrack()
 	bl _Backtrack
-.L737:
+.L781:
 @     Step();
 	bl _Step
 @     if ok then Unwind() end;
 	set r0, _ok
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L732
+	beq .L776
 	bl _Unwind
-	b .L732
-.L731:
+	b .L776
+.L775:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6049,13 +6055,13 @@ _Execute:
 	set r0, _run
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L754
-.L758:
+	beq .L798
+.L802:
 @   while ok do
 	set r0, _ok
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L760
+	beq .L804
 @     nsoln := nsoln+1;
 	add r4, r4, #1
 @     ShowAnswer(base);
@@ -6074,19 +6080,19 @@ _Execute:
 	set r0, _run
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L754
-	b .L758
-.L760:
+	beq .L798
+	b .L802
+.L804:
 @   if nsoln = 0 then
 	cmp r4, #0
-	bne .L754
+	bne .L798
 @     print_string("no"); newline(); newline();
 	mov r1, #2
 	set r0, g89
 	bl print_string
 	bl newline
 	bl newline
-.L754:
+.L798:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6097,37 +6103,36 @@ _GetArgs:
 	mov fp, sp
 @   for i := 1 to symtab[mem[call+1]].arity do
 	mov r4, #1
+	b .L815
+.L812:
+	add r4, r4, #1
+.L815:
+	set r6, _mem
+	set r0, _call
+	ldr r7, [r0]
 	set r0, _symtab
-	set r1, _mem
-	set r2, _call
-	ldr r2, [r2]
-	lsl r2, r2, #2
-	add r1, r1, r2
+	lsl r1, r7, #2
+	add r1, r6, r1
 	ldr r1, [r1, #4]
 	lsl r1, r1, #4
 	add r0, r0, r1
-	ldr r5, [r0, #4]
-.L768:
-	cmp r4, r5
-	bgt .L767
+	ldr r0, [r0, #4]
+	cmp r4, r0
+	bgt .L811
 @     av[i] := Deref(mem[call+i+1], goalframe)
 	set r0, _goalframe
 	ldr r1, [r0]
-	set r0, _mem
-	set r2, _call
-	ldr r2, [r2]
-	add r2, r2, r4
-	lsl r2, r2, #2
-	add r0, r0, r2
+	add r0, r7, r4
+	lsl r0, r0, #2
+	add r0, r6, r0
 	ldr r0, [r0, #4]
 	bl _Deref
 	set r1, _av
 	lsl r2, r4, #2
 	add r1, r1, r2
 	str r0, [r1]
-	add r4, r4, #1
-	b .L768
-.L767:
+	b .L812
+.L811:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6203,7 +6208,7 @@ _DoCall:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #1
-	beq .L774
+	beq .L822
 @     newline(); print_string("Error: "); print_string("bad argument to call/1"); run := false;
 	bl newline
 	mov r1, #7
@@ -6217,8 +6222,8 @@ _DoCall:
 	strb r0, [r1]
 @     return false
 	mov r0, #0
-	b .L772
-.L774:
+	b .L820
+.L822:
 @     PushFrame(1, NULL);
 	mov r1, #0
 	mov r0, #1
@@ -6246,7 +6251,7 @@ _DoCall:
 	str r0, [r1]
 @     return true
 	mov r0, #1
-.L772:
+.L820:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6266,7 +6271,7 @@ _DoNot:
 	ldr r0, [r0]
 	lsr r0, r0, #8
 	cmp r0, #1
-	beq .L778
+	beq .L826
 @     newline(); print_string("Error: "); print_string("bad argument to call/1"); run := false;
 	bl newline
 	mov r1, #7
@@ -6280,8 +6285,8 @@ _DoNot:
 	strb r0, [r1]
 @     return false
 	mov r0, #0
-	b .L776
-.L778:
+	b .L824
+.L826:
 @     PushFrame(1, NULL);
 	mov r1, #0
 	mov r0, #1
@@ -6334,7 +6339,7 @@ _DoNot:
 	set r0, _ok
 	ldrb r0, [r0]
 	cmp r0, #0
-	bne .L781
+	bne .L829
 @       current := (mem[base])+1;
 	ldr r0, [r5]
 	add r0, r0, #1
@@ -6342,13 +6347,13 @@ _DoNot:
 	str r0, [r1]
 @       return true
 	mov r0, #1
-	b .L776
-.L781:
+	b .L824
+.L829:
 @       Commit();
 	bl _Commit
 @       return false
 	mov r0, #0
-.L776:
+.L824:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6370,14 +6375,14 @@ _DoPlus:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L785
+	bne .L833
 	ldr r0, [r6, #8]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L785
+	bne .L833
 @     result := Unify(av[3], goalframe, NewInt(mem[av[1]+1] + mem[av[2]+1]), NULL)
 	ldr r0, [r7, #4]
 	ldr r1, [r5, #4]
@@ -6390,8 +6395,8 @@ _DoPlus:
 	ldr r0, [r6, #12]
 	bl _Unify
 	mov r4, r0
-	b .L786
-.L785:
+	b .L834
+.L833:
 @   elsif (lsr(mem[av[1]], 8) = INT) and (lsr(mem[av[3]], 8) = INT) then
 	set r5, _mem
 	set r6, _av
@@ -6401,19 +6406,19 @@ _DoPlus:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L788
+	bne .L836
 	ldr r0, [r6, #12]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L788
+	bne .L836
 @     if mem[av[1]+1] <= mem[av[3]+1] then
 	ldr r7, [r7, #4]
 	ldr r5, [r5, #4]
 	cmp r7, r5
-	bgt .L786
+	bgt .L834
 @       result := Unify(av[2], goalframe, 
 	sub r0, r5, r7
 	bl _NewInt
@@ -6424,8 +6429,8 @@ _DoPlus:
 	ldr r0, [r6, #8]
 	bl _Unify
 	mov r4, r0
-	b .L786
-.L788:
+	b .L834
+.L836:
 @   elsif (lsr(mem[av[2]], 8) = INT) and (lsr(mem[av[3]], 8) = INT) then
 	set r5, _mem
 	set r6, _av
@@ -6435,19 +6440,19 @@ _DoPlus:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L791
+	bne .L839
 	ldr r0, [r6, #12]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L791
+	bne .L839
 @     if mem[av[2]+1] <= mem[av[3]+1] then
 	ldr r7, [r7, #4]
 	ldr r5, [r5, #4]
 	cmp r7, r5
-	bgt .L786
+	bgt .L834
 @       result := Unify(av[1], goalframe, NewInt(mem[av[3]+1] - mem[av[2]+1]), NULL)
 	sub r0, r5, r7
 	bl _NewInt
@@ -6458,8 +6463,8 @@ _DoPlus:
 	ldr r0, [r6, #4]
 	bl _Unify
 	mov r4, r0
-	b .L786
-.L791:
+	b .L834
+.L839:
 @     newline(); print_string("Error: "); print_string("plus/3 needs at least two integers"); run := false
 	bl newline
 	mov r1, #7
@@ -6471,7 +6476,7 @@ _DoPlus:
 	mov r0, #0
 	set r1, _run
 	strb r0, [r1]
-.L786:
+.L834:
 @   current := (current)+1;
 	set r5, _current
 	ldr r0, [r5]
@@ -6500,14 +6505,14 @@ _DoTimes:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L804
+	bne .L852
 	ldr r0, [r6, #8]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L804
+	bne .L852
 @     result := Unify(av[3], goalframe, 
 	ldr r0, [r7, #4]
 	ldr r1, [r5, #4]
@@ -6520,8 +6525,8 @@ _DoTimes:
 	ldr r0, [r6, #12]
 	bl _Unify
 	mov r4, r0
-	b .L805
-.L804:
+	b .L853
+.L852:
 @   elsif (lsr(mem[av[1]], 8) = INT) and (lsr(mem[av[3]], 8) = INT) then
 	set r5, _mem
 	set r6, _av
@@ -6531,24 +6536,24 @@ _DoTimes:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L807
+	bne .L855
 	ldr r0, [r6, #12]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L807
+	bne .L855
 @     if mem[av[1]+1] <> 0 then
 	ldr r6, [r7, #4]
 	cmp r6, #0
-	beq .L805
+	beq .L853
 @       if mem[av[3]+1] mod mem[av[1]+1] = 0 then
 	mov r1, r6
 	ldr r0, [r5, #4]
 	bl int_mod
 	cmp r0, #0
-	bne .L805
+	bne .L853
 @         result := Unify(av[2], goalframe, 
 	set r5, _av
 	set r6, _mem
@@ -6569,8 +6574,8 @@ _DoTimes:
 	ldr r0, [r5, #8]
 	bl _Unify
 	mov r4, r0
-	b .L805
-.L807:
+	b .L853
+.L855:
 @   elsif (lsr(mem[av[2]], 8) = INT) and (lsr(mem[av[3]], 8) = INT) then
 	set r5, _mem
 	set r6, _av
@@ -6580,24 +6585,24 @@ _DoTimes:
 	ldr r0, [r7]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L810
+	bne .L858
 	ldr r0, [r6, #12]
 	lsl r0, r0, #2
 	add r5, r5, r0
 	ldr r0, [r5]
 	lsr r0, r0, #8
 	cmp r0, #2
-	bne .L810
+	bne .L858
 @     if mem[av[2]+1] <> 0 then
 	ldr r6, [r7, #4]
 	cmp r6, #0
-	beq .L805
+	beq .L853
 @       if mem[av[3]+1] mod mem[av[2]+1] = 0 then
 	mov r1, r6
 	ldr r0, [r5, #4]
 	bl int_mod
 	cmp r0, #0
-	bne .L805
+	bne .L853
 @         result := Unify(av[1], goalframe, 
 	set r5, _av
 	set r6, _mem
@@ -6618,8 +6623,8 @@ _DoTimes:
 	ldr r0, [r5, #4]
 	bl _Unify
 	mov r4, r0
-	b .L805
-.L810:
+	b .L853
+.L858:
 @     newline(); print_string("Error: "); print_string("times/3 needs at least two integers"); run := false
 	bl newline
 	mov r1, #7
@@ -6631,7 +6636,7 @@ _DoTimes:
 	mov r0, #0
 	set r1, _run
 	strb r0, [r1]
-.L805:
+.L853:
 @   current := (current)+1;
 	set r5, _current
 	ldr r0, [r5]
@@ -6770,63 +6775,63 @@ _DoBuiltin:
 	sub r0, r0, #1
 	cmp r0, #11
 	ldrlo pc, [pc, r0, LSL #2]
-	b .L833
-	.word .L835
-	.word .L836
-	.word .L837
-	.word .L838
-	.word .L839
-	.word .L840
-	.word .L841
-	.word .L842
-	.word .L843
-	.word .L844
-	.word .L845
-.L835:
+	b .L881
+	.word .L883
+	.word .L884
+	.word .L885
+	.word .L886
+	.word .L887
+	.word .L888
+	.word .L889
+	.word .L890
+	.word .L891
+	.word .L892
+	.word .L893
+.L883:
 @     CUT:      return DoCut()
 	bl _DoCut
-	b .L832
-.L836:
+	b .L880
+.L884:
 @   | CALL:     return DoCall()
 	bl _DoCall
-	b .L832
-.L837:
+	b .L880
+.L885:
 @   | PLUS:     return DoPlus()
 	bl _DoPlus
-	b .L832
-.L838:
+	b .L880
+.L886:
 @   | TIMES:    return DoTimes()
 	bl _DoTimes
-	b .L832
-.L839:
+	b .L880
+.L887:
 @   | ISINT:    return DoInteger()
 	bl _DoInteger
-	b .L832
-.L840:
+	b .L880
+.L888:
 @   | ISCHAR:   return DoChar()
 	bl _DoChar
-	b .L832
-.L841:
+	b .L880
+.L889:
 @   | NAFF:     return DoNot()
 	bl _DoNot
-	b .L832
-.L842:
+	b .L880
+.L890:
 @   | EQUALITY: return DoEqual()
 	bl _DoEqual
-	b .L832
-.L843:
+	b .L880
+.L891:
 @   | FAIL:     return false
 	mov r0, #0
-	b .L832
-.L844:
+	b .L880
+.L892:
 @   | PRINT:    return DoPrint()
 	bl _DoPrint
-	b .L832
-.L845:
+	b .L880
+.L893:
 @   | NL:	      return DoNl()
 	bl _DoNl
-	b .L832
-.L833:
+	b .L880
+.L881:
 @     newline(); print_string("Panic: "); print_string("bad tag" (*action:1, " in ", "DoBuiltin"*)); newline(); exit(2)
 	bl newline
 	mov r1, #7
@@ -6838,7 +6843,7 @@ _DoBuiltin:
 	bl newline
 	mov r0, #2
 	bl exit
-.L832:
+.L880:
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 
@@ -6868,10 +6873,12 @@ _Initialize:
 	bl _InitSymbols
 @   for i := 1 to MAXARITY do
 	mov r4, #1
-	mov r6, #63
-.L847:
-	cmp r4, r6
-	bgt .L848
+	b .L898
+.L895:
+	add r4, r4, #1
+.L898:
+	cmp r4, #63
+	bgt .L897
 @     p := HeapAlloc(TERM_SIZE);
 	mov r0, #2
 	bl _HeapAlloc
@@ -6888,9 +6895,8 @@ _Initialize:
 	lsl r1, r4, #2
 	add r0, r0, r1
 	str r5, [r0]
-	add r4, r4, #1
-	b .L847
-.L848:
+	b .L895
+.L897:
 @   callbody := HeapAlloc(2);
 	mov r0, #2
 	bl _HeapAlloc
@@ -6923,7 +6929,7 @@ _ReadFile:
 	mov r0, #1
 	set r1, _lineno
 	str r0, [r1]
-.L850:
+.L902:
 @     hmark := hp;
 	set r0, _hp
 	ldr r0, [r0]
@@ -6934,27 +6940,27 @@ _ReadFile:
 	mov r4, r0
 @     if c <> NULL then
 	cmp r4, #0
-	beq .L854
+	beq .L906
 @       if dflag then PrintClause(c) end;	
 	set r0, _dflag
 	ldrb r0, [r0]
 	cmp r0, #0
-	beq .L857
+	beq .L909
 	mov r0, r4
 	bl _PrintClause
-.L857:
+.L909:
 @       if mem[c+3] <> NULL then
 	set r0, _mem
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r0, [r0, #12]
 	cmp r0, #0
-	beq .L859
+	beq .L911
 @         AddClause(c)
 	mov r0, r4
 	bl _AddClause
-	b .L854
-.L859:
+	b .L906
+.L911:
 @         Execute(c);
 	mov r0, r4
 	bl _Execute
@@ -6963,9 +6969,9 @@ _ReadFile:
 	ldr r0, [r0]
 	set r1, _hp
 	str r0, [r1]
-.L854:
+.L906:
 	cmp r4, #0
-	bne .L850
+	bne .L902
 	ldmfd fp, {r4-r10, fp, sp, pc}
 	.ltorg
 

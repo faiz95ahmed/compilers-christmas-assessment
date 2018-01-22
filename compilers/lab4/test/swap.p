@@ -65,35 +65,37 @@ _main:
 	mov fp, sp
 @   for i := 0 to n-1 do a[i] := i end;
 	mov r4, #0
-	mov r5, #9
+	b .L6
 .L3:
-	cmp r4, r5
-	bgt .L4
+	add r4, r4, #1
+.L6:
+	cmp r4, #9
+	bgt .L5
 	set r0, _a
 	lsl r1, r4, #2
 	add r0, r0, r1
 	str r4, [r0]
-	add r4, r4, #1
 	b .L3
-.L4:
+.L5:
 @   swap(3, 6);
 	mov r1, #6
 	mov r0, #3
 	bl _swap
 @   for i := 0 to n-1 do print_num(a[i]) end;
 	mov r4, #0
-	mov r6, #9
-.L5:
-	cmp r4, r6
-	bgt .L6
+	b .L12
+.L9:
+	add r4, r4, #1
+.L12:
+	cmp r4, #9
+	bgt .L11
 	set r0, _a
 	lsl r1, r4, #2
 	add r0, r0, r1
 	ldr r0, [r0]
 	bl print_num
-	add r4, r4, #1
-	b .L5
-.L6:
+	b .L9
+.L11:
 @   newline()
 	bl newline
 	ldmfd fp, {r4-r10, fp, sp, pc}

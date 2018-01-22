@@ -29,21 +29,22 @@ pmain:
 	mov r0, #1
 	set r1, _i
 	str r0, [r1]
-	mov r4, #5
+	b .L5
 .L2:
+	set r5, _i
+	ldr r0, [r5]
+	add r0, r0, #1
+	str r0, [r5]
+.L5:
 	set r0, _i
 	ldr r5, [r0]
-	cmp r5, r4
+	cmp r5, #5
 	bgt .L1
 @     print_num(i);
 	mov r0, r5
 	bl print_num
 @     newline()
 	bl newline
-	set r5, _i
-	ldr r0, [r5]
-	add r0, r0, #1
-	str r0, [r5]
 	b .L2
 .L1:
 	ldmfd fp, {r4-r10, fp, sp, pc}
