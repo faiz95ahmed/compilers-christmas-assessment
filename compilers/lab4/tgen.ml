@@ -235,7 +235,8 @@ let rec gen_cond test tlab flab =
 
 let increment_tmp tmp_var used =  
         if used then
-            <STOREW, <BINOP Plus, <LOADW, address tmp_var>, <CONST 1>>, address tmp_var>
+            <STOREW, <BINOP Plus, <LOADW, address tmp_var>, <CONST 1>>, 
+                                                            address tmp_var>
         else
             <NOP>
 
@@ -266,12 +267,14 @@ let gen_for_list_element elem bodylab var tmp tmp_used =
         <LABEL labelf>, 
         <STOREW, <BINOP Plus, <LOADW, address tmp>, <CONST 1>>, address tmp>>
   | StepElem (e1, e2, e3) ->
-      let internal_lab1 = label () and internal_lab2 = label () and endlab = label () in
+      let internal_lab1 = label () and internal_lab2 = label () 
+        and endlab = label () in
       let step = gen_expr e2 in
       (match step with
         <CONST n> -> if n > 0 then
                         <SEQ,
-                            <STOREW, gen_expr e1, gen_addr var>, (* A: Code for proper fall-through behaviour *)
+                            <STOREW, gen_expr e1, gen_addr var>,
+                            (* A: Code for proper fall-through behaviour *)
                             <JUMP internal_lab1>, (* A *)
                             <LABEL labelf>,
                             <STOREW, <BINOP Plus, gen_expr var, step>, gen_addr var>,
@@ -312,17 +315,22 @@ let gen_for_list_element elem bodylab var tmp tmp_used =
         <LABEL falselab>,
         increment_tmp tmp tmp_used>
 
-(* |gen_for_listt| -- generate the code for an entire for list *)
+(* |gen_for_list| -- generate the code for an entire for list *)
 let gen_for_list var forlist tmp exitlab =
     let lablist = List.map (function x -> label ()) forlist in
     let forlist1 = List.combine lablist forlist in
     let lab1 = label () and lab2 = label () in
-    let forlistelements = List.map (function (x) -> gen_for_list_element x lab1 var tmp true) forlist1 in
+    let forlistelements = List.map 
+    (function (x) -> gen_for_list_element x lab1 var tmp true) forlist1 in
     <SEQ,
-        <JUMPC (Lt, lab2), <LOADW, address tmp>, <CONST 0>>, (* code for skipping the JCASE statement the first time, to allow proper fall-through behaviour*)
+        <JUMPC (Lt, lab2), <LOADW, address tmp>, <CONST 0>>,
+        (* code for skipping the JCASE statement the first time, to allow proper 
+        fall-through behaviour*)
         <JCASE (lablist, exitlab), <LOADW, address tmp>>,
         <LABEL lab2>,
-        <STOREW, <CONST 0>, address tmp>, (* code for skipping the JCASE statement the first time, to allow proper fall-through behaviour*)
+        <STOREW, <CONST 0>, address tmp>,
+        (* code for skipping the JCASE statement the first time, to allow proper 
+        fall-through behaviour*)
         <SEQ, @forlistelements>,
         <JUMP exitlab>,
         <LABEL lab1>>
@@ -402,7 +410,8 @@ let rec gen_stmt s =
           else
             <SEQ,
                 <STOREW, <BINOP Minus, <CONST 0>, <CONST 1>>, address tmp>, 
-                (* this gets optimised to -1, so it's OK  - for skipping the JCASE statement the first time, to allow proper fall-through behaviour *)
+                (* this gets optimised to -1, so it's OK  - for skipping the JCASE 
+                statement the first time, to allow proper fall-through behaviour *)
                 <LABEL l1>,
                 gen_for_list var forlist tmp l2,
                 gen_stmt body,
